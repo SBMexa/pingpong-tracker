@@ -1,0 +1,1887 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Mexa Ping Pong Tracker - SharePoint</title>
+  <script src="msal-browser.min.js"></script>
+  <script>
+    if (!window.msal) {
+      document.write('<script src="https://alcdn.msauth.net/browser/2.38.1/js/msal-browser.min.js"><\\/script>');
+    }
+  </script>
+  <style>
+    :root {
+      --bg: #f5f7fb;
+      --panel: #ffffff;
+      --panel-2: #eef4f8;
+      --ink: #17202a;
+      --muted: #667085;
+      --line: #d9e2ea;
+      --primary: #146c94;
+      --primary-2: #19a7ce;
+      --accent: #f7c948;
+      --success: #247a52;
+      --danger: #bd2f2f;
+      --shadow: 0 18px 42px rgba(23, 32, 42, .10);
+      --radius: 8px;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--ink);
+      background:
+        linear-gradient(180deg, rgba(20,108,148,.08), transparent 32rem),
+        var(--bg);
+    }
+
+    button, input, select, textarea {
+      font: inherit;
+    }
+
+    button {
+      border: 0;
+      cursor: pointer;
+    }
+
+    .app {
+      min-height: 100vh;
+      display: grid;
+      grid-template-columns: 248px 1fr;
+    }
+
+    .side {
+      background: #102f3c;
+      color: #f8fbfd;
+      padding: 22px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      position: sticky;
+      top: 0;
+      height: 100vh;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 8px;
+    }
+
+    .brand-mark {
+      width: 42px;
+      height: 42px;
+      border-radius: var(--radius);
+      background: linear-gradient(135deg, var(--accent), #fff3b0);
+      position: relative;
+      box-shadow: inset 0 -7px 0 rgba(0,0,0,.08);
+    }
+
+    .brand-mark:before,
+    .brand-mark:after {
+      content: "";
+      position: absolute;
+      background: #102f3c;
+    }
+
+    .brand-mark:before {
+      width: 23px;
+      height: 4px;
+      left: 10px;
+      top: 20px;
+      border-radius: 99px;
+      transform: rotate(-22deg);
+    }
+
+    .brand-mark:after {
+      width: 9px;
+      height: 9px;
+      right: 8px;
+      top: 8px;
+      border-radius: 50%;
+    }
+
+    .brand h1 {
+      margin: 0;
+      font-size: 18px;
+      line-height: 1.15;
+      letter-spacing: 0;
+    }
+
+    .brand span {
+      display: block;
+      color: #a8c5d3;
+      font-size: 12px;
+      margin-top: 3px;
+    }
+
+    .nav {
+      display: grid;
+      gap: 6px;
+    }
+
+    .nav button {
+      min-height: 42px;
+      text-align: left;
+      color: #d8e9f0;
+      background: transparent;
+      border-radius: var(--radius);
+      padding: 0 12px;
+      display: grid;
+      grid-template-columns: 24px 1fr;
+      align-items: center;
+      gap: 9px;
+    }
+
+    .nav button:hover,
+    .nav button.active {
+      background: rgba(255,255,255,.12);
+      color: #fff;
+    }
+
+    .nav .ico {
+      width: 24px;
+      height: 24px;
+      display: grid;
+      place-items: center;
+      color: var(--accent);
+      font-weight: 800;
+    }
+
+    .side-card {
+      margin-top: auto;
+      background: rgba(255,255,255,.10);
+      border: 1px solid rgba(255,255,255,.14);
+      border-radius: var(--radius);
+      padding: 14px;
+      color: #d8e9f0;
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .side-card strong {
+      display: block;
+      color: #fff;
+      margin-bottom: 3px;
+    }
+
+    main {
+      padding: 26px;
+      min-width: 0;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+      margin-bottom: 22px;
+    }
+
+    .title-block h2 {
+      margin: 0;
+      font-size: 28px;
+      letter-spacing: 0;
+    }
+
+    .title-block p {
+      margin: 5px 0 0;
+      color: var(--muted);
+    }
+
+    .actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .btn {
+      min-height: 40px;
+      border-radius: var(--radius);
+      padding: 0 14px;
+      color: var(--ink);
+      background: #e8eef3;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .btn.primary {
+      background: var(--primary);
+      color: #fff;
+    }
+
+    .btn.subtle {
+      background: #fff;
+      border: 1px solid var(--line);
+    }
+
+    .btn.danger {
+      background: #ffe9e9;
+      color: var(--danger);
+    }
+
+    .btn.icon {
+      min-height: 32px;
+      padding: 0 10px;
+      font-size: 13px;
+    }
+
+    .view { display: none; }
+    .view.active { display: block; }
+
+    .grid {
+      display: grid;
+      gap: 16px;
+    }
+
+    .grid.kpis {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      margin-bottom: 16px;
+    }
+
+    .grid.two {
+      grid-template-columns: minmax(0, 1.3fr) minmax(320px, .7fr);
+    }
+
+    .grid.three {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .grid.four {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+
+    .card {
+      background: var(--panel);
+      border: 1px solid rgba(16,47,60,.08);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 18px;
+      min-width: 0;
+    }
+
+    .kpi {
+      min-height: 116px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .kpi span {
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0;
+    }
+
+    .kpi strong {
+      font-size: 34px;
+      line-height: 1;
+    }
+
+    .kpi small {
+      color: var(--muted);
+    }
+
+    .insight-card {
+      min-height: 112px;
+    }
+
+    .insight-card span {
+      color: var(--muted);
+      display: block;
+      font-weight: 800;
+      margin-bottom: 24px;
+    }
+
+    .insight-card strong {
+      color: #0047a8;
+      display: block;
+      font-size: 17px;
+      line-height: 1.35;
+    }
+
+    .section-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      margin-bottom: 14px;
+    }
+
+    .section-head h3 {
+      margin: 0;
+      font-size: 18px;
+      letter-spacing: 0;
+    }
+
+    .section-head p {
+      margin: 4px 0 0;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .filters {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    input, select, textarea {
+      width: 100%;
+      min-height: 42px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fff;
+      color: var(--ink);
+      padding: 10px 12px;
+      outline: none;
+    }
+
+    textarea {
+      min-height: 90px;
+      resize: vertical;
+    }
+
+    input:focus, select:focus, textarea:focus {
+      border-color: var(--primary-2);
+      box-shadow: 0 0 0 3px rgba(25,167,206,.16);
+    }
+
+    label {
+      display: grid;
+      gap: 7px;
+      color: var(--muted);
+      font-weight: 700;
+      font-size: 13px;
+    }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .form-grid .wide { grid-column: 1 / -1; }
+
+    .table-wrap {
+      overflow: auto;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+    }
+
+    table {
+      width: 100%;
+      min-width: 760px;
+      border-collapse: collapse;
+      background: #fff;
+    }
+
+    th, td {
+      text-align: left;
+      padding: 13px 14px;
+      border-bottom: 1px solid var(--line);
+      vertical-align: top;
+    }
+
+    th {
+      color: var(--muted);
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0;
+      background: #f8fafc;
+    }
+
+    tr:last-child td { border-bottom: 0; }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      min-height: 26px;
+      padding: 0 9px;
+      border-radius: 99px;
+      background: #e9f7ef;
+      color: var(--success);
+      font-weight: 800;
+      font-size: 12px;
+    }
+
+    .pill.blue {
+      background: #e7f5fb;
+      color: var(--primary);
+    }
+
+    .pill.gold {
+      background: #fff5ce;
+      color: #8a6500;
+    }
+
+    .player-list {
+      display: grid;
+      gap: 10px;
+    }
+
+    .player-card {
+      display: grid;
+      grid-template-columns: 46px 1fr auto;
+      align-items: center;
+      gap: 12px;
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fff;
+    }
+
+    .avatar {
+      width: 46px;
+      height: 46px;
+      border-radius: var(--radius);
+      display: grid;
+      place-items: center;
+      background: linear-gradient(135deg, var(--primary), var(--primary-2));
+      color: #fff;
+      font-weight: 900;
+    }
+
+    .player-card h4 {
+      margin: 0 0 4px;
+      font-size: 15px;
+    }
+
+    .player-card p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .trend-records {
+      display: grid;
+      gap: 8px;
+    }
+
+    .trend-record {
+      min-height: 46px;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      align-items: center;
+      gap: 12px;
+      padding: 0 12px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fff;
+      font-weight: 800;
+    }
+
+    .trend-record span:last-child {
+      color: #0047a8;
+    }
+
+    .court {
+      min-height: 245px;
+      border-radius: var(--radius);
+      background:
+        linear-gradient(90deg, transparent calc(50% - 2px), rgba(255,255,255,.9) calc(50% - 2px), rgba(255,255,255,.9) calc(50% + 2px), transparent calc(50% + 2px)),
+        linear-gradient(180deg, #186f7f, #0f5263);
+      border: 8px solid #102f3c;
+      position: relative;
+      overflow: hidden;
+      box-shadow: inset 0 0 0 2px rgba(255,255,255,.22);
+    }
+
+    .court:before {
+      content: "";
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: calc(50% - 1px);
+      border-top: 2px dashed rgba(255,255,255,.55);
+    }
+
+    .bat {
+      position: absolute;
+      width: 62px;
+      height: 62px;
+      border-radius: 50%;
+      background: #f15b4a;
+      bottom: 24px;
+      left: 46px;
+      box-shadow: inset -8px -7px 0 rgba(0,0,0,.14);
+    }
+
+    .bat:after {
+      content: "";
+      width: 14px;
+      height: 58px;
+      background: #8d5a2b;
+      position: absolute;
+      right: -14px;
+      bottom: -30px;
+      border-radius: 8px;
+      transform: rotate(-38deg);
+    }
+
+    .ball {
+      position: absolute;
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: var(--accent);
+      top: 48px;
+      right: 54px;
+      box-shadow: 0 12px 22px rgba(0,0,0,.22);
+    }
+
+    .court-copy {
+      position: absolute;
+      left: 18px;
+      top: 18px;
+      color: #fff;
+      max-width: 310px;
+    }
+
+    .court-copy h3 {
+      margin: 0 0 8px;
+      font-size: 25px;
+    }
+
+    .court-copy p {
+      margin: 0;
+      color: rgba(255,255,255,.82);
+      line-height: 1.45;
+    }
+
+    canvas {
+      width: 100%;
+      height: 230px;
+      display: block;
+    }
+
+    .message {
+      display: none;
+      padding: 12px 14px;
+      border-radius: var(--radius);
+      font-weight: 700;
+      margin-top: 12px;
+    }
+
+    .message.show { display: block; }
+    .message.good { background: #e9f7ef; color: var(--success); }
+    .message.bad { background: #ffe9e9; color: var(--danger); }
+
+    .split-score {
+      font-weight: 900;
+      color: var(--ink);
+      white-space: nowrap;
+    }
+
+    .muted { color: var(--muted); }
+
+    .empty {
+      padding: 28px;
+      text-align: center;
+      color: var(--muted);
+      border: 1px dashed var(--line);
+      border-radius: var(--radius);
+      background: #fbfcfe;
+    }
+
+    @media (max-width: 980px) {
+      .app { grid-template-columns: 1fr; }
+      .side {
+        position: static;
+        height: auto;
+      }
+      .nav {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+      }
+      .grid.kpis,
+      .grid.two,
+      .grid.three,
+      .grid.four,
+      .form-grid {
+        grid-template-columns: 1fr;
+      }
+      .topbar {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+      .actions { justify-content: flex-start; }
+    }
+
+    @media (max-width: 620px) {
+      main { padding: 16px; }
+      .nav { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .nav button { grid-template-columns: 1fr; text-align: center; }
+      .nav .ico { display: none; }
+      .title-block h2 { font-size: 24px; }
+      .player-card { grid-template-columns: 42px 1fr; }
+      .player-card .pill { grid-column: 1 / -1; justify-self: start; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <aside class="side">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true"></div>
+        <div>
+          <h1>Mexa Ping Pong</h1>
+          <span>Staff tracker</span>
+        </div>
+      </div>
+
+      <nav class="nav" aria-label="Main navigation">
+        <button class="active" data-view="dashboard"><span class="ico">D</span>Dashboard</button>
+        <button data-view="log"><span class="ico">+</span>Log game</button>
+        <button data-view="games"><span class="ico">G</span>Games</button>
+        <button data-view="members"><span class="ico">M</span>Members</button>
+        <button data-view="stats"><span class="ico">S</span>Stats</button>
+        <button data-view="h2h"><span class="ico">H</span>Head-to-head</button>
+        <button data-view="settings"><span class="ico">C</span>Settings</button>
+      </nav>
+
+      <div class="side-card">
+        <strong id="dataModeTitle">Local preview mode</strong>
+        <span id="dataModeText">Configure Microsoft sign-in to connect SharePoint lists.</span>
+      </div>
+    </aside>
+
+    <main>
+      <div class="topbar">
+        <div class="title-block">
+          <h2 id="pageTitle">Dashboard</h2>
+          <p id="pageSubtitle">A live view of the office table tennis table.</p>
+        </div>
+        <div class="actions">
+          <select id="monthFilter" aria-label="Month filter"></select>
+          <button class="btn subtle" id="exportBtn" type="button">Export CSV</button>
+          <button class="btn primary" data-go="log" type="button">Log game</button>
+        </div>
+      </div>
+
+      <section id="dashboard" class="view active">
+        <div class="grid kpis">
+          <div class="card kpi"><span>Total games played</span><strong id="kpiGames">0</strong><small id="kpiGamesSub">All time</small></div>
+          <div class="card kpi"><span>Active players</span><strong id="kpiPlayers">0</strong><small>Members list</small></div>
+          <div class="card kpi"><span>Current champion</span><strong id="kpiLeader">-</strong><small>Ranked by win rate</small></div>
+          <div class="card kpi"><span>Games this week</span><strong id="kpiWeek">0</strong><small id="kpiWeekSub">Last 7 days</small></div>
+        </div>
+
+        <div class="grid four" style="margin-bottom:16px">
+          <div class="card insight-card"><span>Biggest win</span><strong id="insightBiggest">-</strong></div>
+          <div class="card insight-card"><span>Most wins</span><strong id="insightMostWins">-</strong></div>
+          <div class="card insight-card"><span>Most active player</span><strong id="insightMostActive">-</strong></div>
+          <div class="card insight-card"><span>Closest game</span><strong id="insightClosest">-</strong></div>
+        </div>
+
+        <div class="grid two">
+          <div class="card">
+            <div class="court" aria-label="Decorative ping pong table illustration">
+              <div class="court-copy">
+                <h3 id="headline">The table is open</h3>
+                <p id="headlineCopy">Log the latest result, track the current leader, and settle the next office rivalry with actual numbers.</p>
+              </div>
+              <div class="bat"></div>
+              <div class="ball"></div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="section-head">
+              <div>
+                <h3>Leaderboard</h3>
+                <p>Top players by win percentage.</p>
+              </div>
+            </div>
+            <div id="leaderboardList" class="player-list"></div>
+          </div>
+        </div>
+
+        <div class="grid two" style="margin-top:16px">
+          <div class="card">
+            <div class="section-head">
+              <div>
+                <h3>Recent games</h3>
+                <p>Latest match results and notes.</p>
+              </div>
+            </div>
+            <div id="recentGames"></div>
+          </div>
+
+          <div class="card">
+            <div class="section-head">
+              <div>
+                <h3>Win rate chart</h3>
+                <p>All active players compared.</p>
+              </div>
+            </div>
+            <canvas id="winChart" width="640" height="300"></canvas>
+          </div>
+        </div>
+      </section>
+
+      <section id="log" class="view">
+        <div class="card">
+          <div class="section-head">
+            <div>
+              <h3>Log a game</h3>
+              <p>First to 21 wins. If it reaches 20-20, the only valid deuce result is 22-20.</p>
+            </div>
+          </div>
+
+          <form id="gameForm" class="form-grid">
+            <label>Player 1
+              <select id="player1" required></select>
+            </label>
+            <label>Player 2
+              <select id="player2" required></select>
+            </label>
+            <label>Player 1 score
+              <input id="score1" type="number" min="0" max="22" inputmode="numeric" required>
+            </label>
+            <label>Player 2 score
+              <input id="score2" type="number" min="0" max="22" inputmode="numeric" required>
+            </label>
+            <label>Game date
+              <input id="gameDate" type="date" required>
+            </label>
+            <label class="wide">Notes
+              <textarea id="notes" placeholder="Optional match notes"></textarea>
+            </label>
+            <div class="wide">
+              <button class="btn primary" type="submit">Save game</button>
+              <button class="btn subtle" id="resetBtn" type="button">Reset preview data</button>
+              <div id="formMessage" class="message" role="status"></div>
+            </div>
+          </form>
+        </div>
+      </section>
+
+      <section id="games" class="view">
+        <div class="card">
+          <div class="section-head">
+            <div>
+              <h3>Games</h3>
+              <p>Search and review every recorded result.</p>
+            </div>
+            <div class="filters">
+              <input id="gameSearch" type="search" placeholder="Search player, winner, note">
+            </div>
+          </div>
+          <div id="gamesTable"></div>
+        </div>
+      </section>
+
+      <section id="members" class="view">
+        <div class="grid two">
+          <div class="card">
+            <div class="section-head">
+              <div>
+                <h3>Members</h3>
+                <p>Player records from the members list.</p>
+              </div>
+            </div>
+            <div id="membersList" class="player-list"></div>
+          </div>
+          <div class="card">
+            <div class="section-head">
+              <div>
+                <h3 id="profileName">Player profile</h3>
+                <p id="profileSummary">Select a member to view form and recent games.</p>
+              </div>
+            </div>
+            <div id="profileBody"></div>
+          </div>
+        </div>
+      </section>
+
+      <section id="stats" class="view">
+        <div class="grid four">
+          <div class="card kpi"><span>Games this month</span><strong id="kpiMonth">0</strong><small id="kpiMonthSub">Games logged</small></div>
+          <div class="card kpi"><span>Most wins</span><strong id="statMostWins">-</strong><small id="statMostWinsSub"></small></div>
+          <div class="card kpi"><span>Most active</span><strong id="statMostActive">-</strong><small id="statMostActiveSub"></small></div>
+          <div class="card kpi"><span>Closest game</span><strong id="statClosest">-</strong><small id="statClosestSub"></small></div>
+        </div>
+        <div class="grid two" style="margin-top:16px">
+          <div class="card">
+            <div class="section-head">
+              <div>
+                <h3>Monthly leaderboard</h3>
+                <p>Uses the selected month filter.</p>
+              </div>
+            </div>
+            <div id="monthlyTable"></div>
+          </div>
+          <div class="card">
+            <div class="section-head">
+              <div>
+                <h3>Points chart</h3>
+                <p>Points for and against.</p>
+              </div>
+            </div>
+            <canvas id="pointsChart" width="640" height="300"></canvas>
+          </div>
+        </div>
+
+        <div class="card" style="margin-top:16px">
+          <div class="section-head">
+            <div>
+              <h3>Score trends</h3>
+              <p>Player trend cards, score movement, and head-to-head records.</p>
+            </div>
+            <div class="filters">
+              <select id="trendPlayer" aria-label="Select player"></select>
+            </div>
+          </div>
+          <div class="grid four">
+            <div class="card kpi"><span>Games played</span><strong id="trendGames">0</strong><small>Selected range</small></div>
+            <div class="card kpi"><span>Total wins</span><strong id="trendWins">0</strong><small>Selected range</small></div>
+            <div class="card kpi"><span>Win rate</span><strong id="trendWinRate">0%</strong><small>Selected range</small></div>
+            <div class="card kpi"><span>Avg score</span><strong id="trendAvgScore">0</strong><small>Points per game</small></div>
+          </div>
+          <div class="grid two" style="margin-top:16px">
+            <div>
+              <div class="section-head">
+                <div>
+                  <h3>Score trend over time</h3>
+                  <p>Points scored by the selected player in each game.</p>
+                </div>
+              </div>
+              <canvas id="scoreTrendChart" width="760" height="300"></canvas>
+            </div>
+            <div>
+              <div class="section-head">
+                <div>
+                  <h3>Head-to-head records</h3>
+                  <p>Wins and losses against each active player.</p>
+                </div>
+              </div>
+              <div id="trendH2H" class="trend-records"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="h2h" class="view">
+        <div class="card">
+          <div class="section-head">
+            <div>
+              <h3>Head-to-head</h3>
+              <p>Compare two players directly across all games or the selected month.</p>
+            </div>
+          </div>
+          <div class="form-grid">
+            <label>Player A
+              <select id="h2hA"></select>
+            </label>
+            <label>Player B
+              <select id="h2hB"></select>
+            </label>
+          </div>
+        </div>
+        <div class="grid kpis" style="margin-top:16px">
+          <div class="card kpi"><span>Meetings</span><strong id="h2hMeetings">0</strong><small>Selected range</small></div>
+          <div class="card kpi"><span id="h2hAName">Player A</span><strong id="h2hAWins">0</strong><small>Wins</small></div>
+          <div class="card kpi"><span id="h2hBName">Player B</span><strong id="h2hBWins">0</strong><small>Wins</small></div>
+          <div class="card kpi"><span>Leader</span><strong id="h2hLeader">-</strong><small>Head-to-head</small></div>
+        </div>
+        <div class="card">
+          <div class="section-head">
+            <div>
+              <h3>Match history</h3>
+              <p>Results between the selected players.</p>
+            </div>
+          </div>
+          <div id="h2hTable"></div>
+        </div>
+      </section>
+
+      <section id="settings" class="view">
+        <div class="card">
+          <div class="section-head">
+            <div>
+              <h3>SharePoint connection</h3>
+              <p>Connect the app to Microsoft Graph and your existing SharePoint lists.</p>
+            </div>
+          </div>
+
+          <div class="form-grid">
+            <label>Tenant ID
+              <input id="cfgTenantId" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx">
+            </label>
+            <label>Client ID
+              <input id="cfgClientId" placeholder="App registration application/client ID">
+            </label>
+            <label>SharePoint host
+              <input id="cfgSiteHost" value="mexasolutionsltd.sharepoint.com">
+            </label>
+            <label>Site path
+              <input id="cfgSitePath" value="/sites/MexaSolutionsLTD">
+            </label>
+            <label>Members list name
+              <input id="cfgMembersList" value="PingPong_Members">
+            </label>
+            <label>Games list name
+              <input id="cfgGamesList" value="PingPong_Games">
+            </label>
+            <div class="wide">
+              <button class="btn primary" id="saveConfigBtn" type="button">Save config</button>
+              <button class="btn subtle" id="signInBtn" type="button">Sign in</button>
+              <button class="btn subtle" id="loadSharePointBtn" type="button">Load SharePoint data</button>
+              <button class="btn danger" id="signOutBtn" type="button">Sign out</button>
+              <div id="connectionMessage" class="message" role="status"></div>
+            </div>
+          </div>
+        </div>
+
+      </section>
+    </main>
+  </div>
+
+  <script>
+    const STORAGE_KEY = "mexa_pingpong_preview_v1";
+    const CONFIG_KEY = "mexa_pingpong_sharepoint_config_v1";
+    const GRAPH_SCOPES = ["User.Read", "Sites.ReadWrite.All"];
+    const todayIso = new Date().toISOString().slice(0, 10);
+
+    const seed = {
+      members: [
+        { id: 7, title: "Dom", active: true },
+        { id: 9, title: "Bob", active: true },
+        { id: 10, title: "Simon", active: true },
+        { id: 11, title: "Hollie", active: true }
+      ],
+      games: [
+        { id: 1, title: "Game #001", player1Name: "Bob", player2Name: "Dom", player1ID: 9, player2ID: 7, player1Score: 20, player2Score: 22, winnerName: "Dom", winnerID: 7, gameDate: "2026-05-12", notes: "Bob was 18-5 up, and then Dom came back." },
+        { id: 2, title: "Game #002", player1Name: "Bob", player2Name: "Dom", player1ID: 9, player2ID: 7, player1Score: 21, player2Score: 16, winnerName: "Bob", winnerID: 9, gameDate: "2026-05-13", notes: "Bob closed blinds for the first time." },
+        { id: 3, title: "Game #003", player1Name: "Dom", player2Name: "Bob", player1ID: 7, player2ID: 9, player1Score: 21, player2Score: 18, winnerName: "Dom", winnerID: 7, gameDate: "2026-05-14", notes: "" },
+        { id: 4, title: "Game #004", player1Name: "Bob", player2Name: "Dom", player1ID: 9, player2ID: 7, player1Score: 21, player2Score: 17, winnerName: "Bob", winnerID: 9, gameDate: "2026-05-19", notes: "" },
+        { id: 5, title: "Game #005", player1Name: "Dom", player2Name: "Bob", player1ID: 7, player2ID: 9, player1Score: 21, player2Score: 11, winnerName: "Dom", winnerID: 7, gameDate: "2026-05-20", notes: "" },
+        { id: 6, title: "Game #006", player1Name: "Bob", player2Name: "Dom", player1ID: 9, player2ID: 7, player1Score: 21, player2Score: 18, winnerName: "Bob", winnerID: 9, gameDate: "2026-05-27", notes: "" }
+      ]
+    };
+
+    let state = loadState();
+    let appConfig = loadConfig();
+    let msalApp = null;
+    let graphAccount = null;
+    let dataMode = "local";
+    let selectedProfileId = state.members[0]?.id;
+
+    const pageMeta = {
+      dashboard: ["Dashboard", "A live view of the office table tennis table."],
+      log: ["Log game", "Capture a result with score validation and optional notes."],
+      games: ["Games", "Search, filter, and review match history."],
+      members: ["Members", "Player records, recent form, and profile stats."],
+      stats: ["Stats", "Leaderboards, monthly form, points, and standout games."],
+      h2h: ["Head-to-head", "Compare two staff members directly."],
+      settings: ["Settings", "Connect Microsoft sign-in and SharePoint list storage."]
+    };
+
+    function loadConfig() {
+      const saved = localStorage.getItem(CONFIG_KEY);
+      const defaults = {
+        tenantId: "ec5f3b0e-bc54-4818-871a-495b6a10ecef",
+        clientId: "78f9d968-cf3b-400f-98ff-0d461337e71c",
+        siteHost: "mexasolutionsltd.sharepoint.com",
+        sitePath: "/sites/MexaSolutionsLTD",
+        membersListName: "PingPong_Members",
+        gamesListName: "PingPong_Games"
+      };
+      if (!saved) return defaults;
+      try {
+        return { ...defaults, ...JSON.parse(saved) };
+      } catch {
+        return defaults;
+      }
+    }
+
+    function saveConfig() {
+      appConfig = {
+        tenantId: document.getElementById("cfgTenantId").value.trim(),
+        clientId: document.getElementById("cfgClientId").value.trim(),
+        siteHost: document.getElementById("cfgSiteHost").value.trim(),
+        sitePath: document.getElementById("cfgSitePath").value.trim(),
+        membersListName: document.getElementById("cfgMembersList").value.trim(),
+        gamesListName: document.getElementById("cfgGamesList").value.trim()
+      };
+      localStorage.setItem(CONFIG_KEY, JSON.stringify(appConfig));
+      msalApp = null;
+    }
+
+    function renderConfig() {
+      document.getElementById("cfgTenantId").value = appConfig.tenantId;
+      document.getElementById("cfgClientId").value = appConfig.clientId;
+      document.getElementById("cfgSiteHost").value = appConfig.siteHost;
+      document.getElementById("cfgSitePath").value = appConfig.sitePath;
+      document.getElementById("cfgMembersList").value = appConfig.membersListName;
+      document.getElementById("cfgGamesList").value = appConfig.gamesListName;
+      document.getElementById("dataModeTitle").textContent = dataMode === "sharepoint" ? "SharePoint live mode" : "Local preview mode";
+      document.getElementById("dataModeText").textContent = dataMode === "sharepoint"
+        ? `Connected to ${appConfig.membersListName} and ${appConfig.gamesListName}.`
+        : "Configure Microsoft sign-in to connect SharePoint lists.";
+    }
+
+    function loadState() {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (!saved) return structuredClone(seed);
+      try {
+        const parsed = JSON.parse(saved);
+        if (!parsed.members || !parsed.games) return structuredClone(seed);
+        return parsed;
+      } catch {
+        return structuredClone(seed);
+      }
+    }
+
+    function saveState() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    }
+
+    function showConnectionMessage(text, kind = "good") {
+      const message = document.getElementById("connectionMessage");
+      message.textContent = text;
+      message.className = `message show ${kind}`;
+    }
+
+    async function initMsal() {
+      if (!appConfig.tenantId || !appConfig.clientId) {
+        throw new Error("Add Tenant ID and Client ID in Settings first.");
+      }
+      if (!window.msal) {
+        throw new Error("MSAL Browser could not be loaded. Confirm msal-browser.min.js is in the same folder as this HTML file, then hard-refresh the page.");
+      }
+      if (!msalApp) {
+        msalApp = new msal.PublicClientApplication({
+          auth: {
+            clientId: appConfig.clientId,
+            authority: `https://login.microsoftonline.com/${appConfig.tenantId}`,
+            redirectUri: window.location.href.split("#")[0]
+          },
+          cache: {
+            cacheLocation: "localStorage",
+            storeAuthStateInCookie: false
+          }
+        });
+        if (typeof msalApp.initialize === "function") {
+          await msalApp.initialize();
+        }
+        const accounts = msalApp.getAllAccounts();
+        graphAccount = accounts[0] || null;
+      }
+      return msalApp;
+    }
+
+    async function signIn() {
+      const app = await initMsal();
+      const result = await app.loginPopup({ scopes: GRAPH_SCOPES });
+      graphAccount = result.account;
+      showConnectionMessage(`Signed in as ${graphAccount.username}.`);
+    }
+
+    async function signOut() {
+      if (!msalApp || !graphAccount) return;
+      await msalApp.logoutPopup({ account: graphAccount });
+      graphAccount = null;
+      dataMode = "local";
+      renderConfig();
+      showConnectionMessage("Signed out. The app is back in local preview mode.");
+    }
+
+    async function getToken(interactive = true) {
+      const app = await initMsal();
+      if (!graphAccount) {
+        const accounts = app.getAllAccounts();
+        graphAccount = accounts[0] || null;
+      }
+      if (!graphAccount) {
+        if (!interactive) throw new Error("No cached Microsoft sign-in found.");
+        await signIn();
+      }
+      try {
+        const result = await app.acquireTokenSilent({ scopes: GRAPH_SCOPES, account: graphAccount });
+        return result.accessToken;
+      } catch {
+        if (!interactive) throw new Error("Cached sign-in needs renewal.");
+        const result = await app.acquireTokenPopup({ scopes: GRAPH_SCOPES, account: graphAccount });
+        graphAccount = result.account;
+        return result.accessToken;
+      }
+    }
+
+    async function graphFetch(path, options = {}, interactive = true) {
+      const token = await getToken(interactive);
+      const response = await fetch(`https://graph.microsoft.com/v1.0${path}`, {
+        ...options,
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+          ...(options.headers || {})
+        }
+      });
+      if (!response.ok) {
+        const detail = await response.text();
+        throw new Error(`Graph request failed (${response.status}): ${detail}`);
+      }
+      if (response.status === 204) return null;
+      return response.json();
+    }
+
+    function normalizeMember(item) {
+      const fields = item.fields || {};
+      return {
+        id: Number(item.id),
+        title: fields.Title || `Member ${item.id}`,
+        active: fields.Active !== false
+      };
+    }
+
+    function normalizeGame(item) {
+      const fields = item.fields || {};
+      return {
+        id: Number(item.id),
+        title: fields.Title || `Game #${String(item.id).padStart(3, "0")}`,
+        player1Name: fields.Player1Name || "",
+        player2Name: fields.Player2Name || "",
+        player1ID: Number(fields.Player1ID || 0),
+        player2ID: Number(fields.Player2ID || 0),
+        player1Score: Number(fields.Player1Score || 0),
+        player2Score: Number(fields.Player2Score || 0),
+        winnerName: fields.WinnerName || "",
+        winnerID: Number(fields.WinnerID || 0),
+        gameDate: String(fields.GameDate || todayIso).slice(0, 10),
+        notes: fields.Notes || ""
+      };
+    }
+
+    async function getSharePointRefs(interactive = true) {
+      const site = await graphFetch(`/sites/${appConfig.siteHost}:${appConfig.sitePath}`, {}, interactive);
+      const lists = await graphFetch(`/sites/${encodeURIComponent(site.id)}/lists?$select=id,displayName,name`, {}, interactive);
+      const membersList = lists.value.find(list => list.displayName === appConfig.membersListName || list.name === appConfig.membersListName);
+      const gamesList = lists.value.find(list => list.displayName === appConfig.gamesListName || list.name === appConfig.gamesListName);
+      if (!membersList || !gamesList) {
+        throw new Error("Could not find one or both SharePoint lists. Check the list names in Settings.");
+      }
+      return { site, membersList, gamesList };
+    }
+
+    async function loadSharePointData(interactive = true) {
+      saveConfig();
+      if (interactive) showConnectionMessage("Loading SharePoint data...");
+      const refs = await getSharePointRefs(interactive);
+      const members = await graphFetch(`/sites/${encodeURIComponent(refs.site.id)}/lists/${encodeURIComponent(refs.membersList.id)}/items?$expand=fields&$top=200`, {}, interactive);
+      const games = await graphFetch(`/sites/${encodeURIComponent(refs.site.id)}/lists/${encodeURIComponent(refs.gamesList.id)}/items?$expand=fields&$top=500`, {}, interactive);
+      state = {
+        members: members.value.map(normalizeMember).filter(member => member.title),
+        games: games.value.map(normalizeGame).filter(game => game.player1ID && game.player2ID)
+      };
+      selectedProfileId = state.members[0]?.id;
+      dataMode = "sharepoint";
+      renderAll();
+      showConnectionMessage(`Loaded ${state.members.length} members and ${state.games.length} games from SharePoint.`);
+    }
+
+    async function createSharePointGame(game) {
+      const refs = await getSharePointRefs(true);
+      return graphFetch(`/sites/${encodeURIComponent(refs.site.id)}/lists/${encodeURIComponent(refs.gamesList.id)}/items`, {
+        method: "POST",
+        body: JSON.stringify({
+          fields: {
+            Title: game.title,
+            Player1Name: game.player1Name,
+            Player2Name: game.player2Name,
+            Player1ID: game.player1ID,
+            Player2ID: game.player2ID,
+            Player1Score: game.player1Score,
+            Player2Score: game.player2Score,
+            WinnerName: game.winnerName,
+            WinnerID: game.winnerID,
+            GameDate: game.gameDate,
+            Notes: game.notes
+          }
+        })
+      }, true);
+    }
+
+    async function deleteSharePointGame(gameId) {
+      const refs = await getSharePointRefs(true);
+      return graphFetch(`/sites/${encodeURIComponent(refs.site.id)}/lists/${encodeURIComponent(refs.gamesList.id)}/items/${encodeURIComponent(gameId)}`, {
+        method: "DELETE"
+      }, true);
+    }
+
+    async function restoreCachedSignIn() {
+      if (!appConfig.tenantId || !appConfig.clientId || !window.msal) return;
+      try {
+        await initMsal();
+        const accounts = msalApp.getAllAccounts();
+        if (!accounts.length) return;
+        graphAccount = accounts[0];
+        showConnectionMessage(`Signed in as ${graphAccount.username}. Loading SharePoint data...`);
+        await loadSharePointData(false);
+      } catch {
+        dataMode = "local";
+        renderConfig();
+        showConnectionMessage("Cached sign-in needs renewal. Click Sign in, then Load SharePoint data.", "bad");
+      }
+    }
+
+    function byDateDesc(a, b) {
+      return new Date(b.gameDate) - new Date(a.gameDate);
+    }
+
+    function currentMonth() {
+      return document.getElementById("monthFilter").value;
+    }
+
+    function gamesForSelectedMonth() {
+      const month = currentMonth();
+      if (month === "all") return state.games;
+      return state.games.filter(game => game.gameDate.startsWith(month));
+    }
+
+    function activeMembers() {
+      return state.members.filter(member => member.active);
+    }
+
+    function memberName(id) {
+      return state.members.find(member => member.id === id)?.title || "Unknown";
+    }
+
+    function initials(name) {
+      return name.split(" ").map(part => part[0]).join("").slice(0, 2).toUpperCase();
+    }
+
+    function isValidScore(p1, p2) {
+      if (!Number.isFinite(p1) || !Number.isFinite(p2)) return false;
+      if (p1 < 0 || p2 < 0 || p1 === p2) return false;
+      if (Math.max(p1, p2) === 21 && Math.min(p1, p2) < 20) return true;
+      if (Math.max(p1, p2) === 22 && Math.min(p1, p2) === 20) return true;
+      return false;
+    }
+
+    function buildStats(games = state.games) {
+      return activeMembers().map(member => {
+        const played = games.filter(game => game.player1ID === member.id || game.player2ID === member.id);
+        const wins = played.filter(game => game.winnerID === member.id).length;
+        const pointsFor = played.reduce((sum, game) => {
+          if (game.player1ID === member.id) return sum + game.player1Score;
+          return sum + game.player2Score;
+        }, 0);
+        const pointsAgainst = played.reduce((sum, game) => {
+          if (game.player1ID === member.id) return sum + game.player2Score;
+          return sum + game.player1Score;
+        }, 0);
+        return {
+          ...member,
+          gamesPlayed: played.length,
+          wins,
+          losses: played.length - wins,
+          winRate: played.length ? Math.round((wins / played.length) * 1000) / 10 : 0,
+          pointsFor,
+          pointsAgainst
+        };
+      }).sort((a, b) => b.winRate - a.winRate || b.wins - a.wins || b.gamesPlayed - a.gamesPlayed);
+    }
+
+    function gameMargin(game) {
+      return Math.abs(game.player1Score - game.player2Score);
+    }
+
+    function gameScore(game) {
+      return `${game.player1Score}-${game.player2Score}`;
+    }
+
+    function gamesThisWeek() {
+      const now = new Date();
+      const weekStart = new Date(now);
+      const day = weekStart.getDay();
+      const mondayOffset = day === 0 ? -6 : 1 - day;
+      weekStart.setDate(weekStart.getDate() + mondayOffset);
+      weekStart.setHours(0, 0, 0, 0);
+      const weekEnd = new Date(weekStart);
+      weekEnd.setDate(weekStart.getDate() + 7);
+      return state.games.filter(game => {
+        const date = new Date(game.gameDate);
+        return date >= weekStart && date < weekEnd;
+      });
+    }
+
+    function statInsights(games = state.games) {
+      const stats = buildStats(games);
+      const maxWins = Math.max(0, ...stats.map(player => player.wins));
+      const maxGames = Math.max(0, ...stats.map(player => player.gamesPlayed));
+      const biggest = games.map(game => ({ ...game, margin: gameMargin(game) })).toSorted((a, b) => b.margin - a.margin)[0];
+      const closest = games.map(game => ({ ...game, margin: gameMargin(game) })).toSorted((a, b) => a.margin - b.margin)[0];
+      return {
+        mostWins: stats.filter(player => player.wins === maxWins && maxWins > 0).map(player => player.title).join(", ") || "-",
+        mostActive: stats.find(player => player.gamesPlayed === maxGames && maxGames > 0)?.title || "-",
+        biggest,
+        closest
+      };
+    }
+
+    function escapeHtml(value) {
+      return String(value ?? "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+
+    function formatDate(value) {
+      return new Intl.DateTimeFormat("en-GB", { day: "2-digit", month: "short", year: "numeric" }).format(new Date(value));
+    }
+
+    function renderMonthFilter() {
+      const select = document.getElementById("monthFilter");
+      const months = [...new Set(state.games.map(game => game.gameDate.slice(0, 7)))].sort().reverse();
+      const existing = select.value || "all";
+      select.innerHTML = `<option value="all">All time</option>` + months.map(month => {
+        const label = new Intl.DateTimeFormat("en-GB", { month: "long", year: "numeric" }).format(new Date(month + "-01"));
+        return `<option value="${month}">${label}</option>`;
+      }).join("");
+      select.value = months.includes(existing) || existing === "all" ? existing : "all";
+    }
+
+    function renderSelects() {
+      const options = activeMembers().map(member => `<option value="${member.id}">${escapeHtml(member.title)}</option>`).join("");
+      ["player1", "player2", "h2hA", "h2hB", "trendPlayer"].forEach(id => {
+        const el = document.getElementById(id);
+        const current = el.value;
+        el.innerHTML = options;
+        if (current) el.value = current;
+      });
+      if (document.getElementById("player1").value === document.getElementById("player2").value) {
+        document.getElementById("player2").selectedIndex = Math.min(1, activeMembers().length - 1);
+      }
+      if (document.getElementById("h2hA").value === document.getElementById("h2hB").value) {
+        document.getElementById("h2hB").selectedIndex = Math.min(1, activeMembers().length - 1);
+      }
+      document.getElementById("gameDate").value = document.getElementById("gameDate").value || todayIso;
+    }
+
+    function renderDashboard() {
+      const allStats = buildStats();
+      const monthGames = gamesForSelectedMonth();
+      const leader = allStats.find(player => player.gamesPlayed > 0);
+      const insights = statInsights();
+      const weekGames = gamesThisWeek();
+      document.getElementById("kpiGames").textContent = state.games.length;
+      document.getElementById("kpiPlayers").textContent = activeMembers().length;
+      document.getElementById("kpiLeader").textContent = leader ? leader.title : "-";
+      document.getElementById("kpiWeek").textContent = weekGames.length;
+      document.getElementById("kpiWeekSub").textContent = weekGames.length === 1 ? "Game since Monday" : "Games since Monday";
+      document.getElementById("insightBiggest").textContent = insights.biggest ? `${insights.biggest.winnerName} (${gameScore(insights.biggest)})` : "-";
+      document.getElementById("insightMostWins").textContent = insights.mostWins;
+      document.getElementById("insightMostActive").textContent = insights.mostActive;
+      document.getElementById("insightClosest").textContent = insights.closest ? `${insights.closest.player1Name} vs ${insights.closest.player2Name} (${gameScore(insights.closest)})` : "-";
+
+      document.getElementById("leaderboardList").innerHTML = allStats.slice(0, 5).map((player, index) => `
+        <div class="player-card">
+          <div class="avatar">${initials(player.title)}</div>
+          <div>
+            <h4>${index + 1}. ${escapeHtml(player.title)}</h4>
+            <p>${player.wins} wins, ${player.losses} losses, ${player.gamesPlayed} games</p>
+          </div>
+          <span class="pill gold">${player.winRate}%</span>
+        </div>
+      `).join("");
+
+      renderGamesTable("recentGames", state.games.toSorted(byDateDesc).slice(0, 6), false);
+      drawWinChart();
+    }
+
+    function renderGamesTable(targetId, games, includeNotes = true, includeActions = false) {
+      const target = document.getElementById(targetId);
+      if (!games.length) {
+        target.innerHTML = `<div class="empty">No games found.</div>`;
+        return;
+      }
+      target.innerHTML = `
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Game</th>
+                <th>Date</th>
+                <th>Players</th>
+                <th>Score</th>
+                <th>Winner</th>
+                ${includeNotes ? "<th>Notes</th>" : ""}
+                ${includeActions ? "<th>Actions</th>" : ""}
+              </tr>
+            </thead>
+            <tbody>
+              ${games.map(game => `
+                <tr>
+                  <td>${escapeHtml(game.title)}</td>
+                  <td>${formatDate(game.gameDate)}</td>
+                  <td>${escapeHtml(game.player1Name)} vs ${escapeHtml(game.player2Name)}</td>
+                  <td><span class="split-score">${game.player1Score}-${game.player2Score}</span></td>
+                  <td><span class="pill">${escapeHtml(game.winnerName)}</span></td>
+                  ${includeNotes ? `<td class="muted">${escapeHtml(game.notes || "")}</td>` : ""}
+                  ${includeActions ? `<td><button class="btn danger icon" data-delete-game="${game.id}" type="button">Delete</button></td>` : ""}
+                </tr>
+              `).join("")}
+            </tbody>
+          </table>
+        </div>
+      `;
+      if (includeActions) attachDeleteHandlers(target);
+    }
+
+    function attachDeleteHandlers(container) {
+      container.querySelectorAll("[data-delete-game]").forEach(button => {
+        button.addEventListener("click", async () => {
+          const gameId = Number(button.dataset.deleteGame);
+          const game = state.games.find(item => item.id === gameId);
+          if (!game) return;
+          const confirmed = window.confirm(`Delete ${game.title}: ${game.player1Name} vs ${game.player2Name}?`);
+          if (!confirmed) return;
+          button.disabled = true;
+          button.textContent = "Deleting";
+          try {
+            if (dataMode === "sharepoint") {
+              await deleteSharePointGame(game.id);
+            }
+            state.games = state.games.filter(item => item.id !== game.id);
+            if (dataMode !== "sharepoint") saveState();
+            renderAll();
+            navigate("games");
+          } catch (error) {
+            button.disabled = false;
+            button.textContent = "Delete";
+            window.alert(error.message);
+          }
+        });
+      });
+    }
+
+    function renderGames() {
+      const query = document.getElementById("gameSearch").value.trim().toLowerCase();
+      const filtered = gamesForSelectedMonth().filter(game => {
+        const haystack = `${game.title} ${game.player1Name} ${game.player2Name} ${game.winnerName} ${game.notes}`.toLowerCase();
+        return !query || haystack.includes(query);
+      }).toSorted(byDateDesc);
+      renderGamesTable("gamesTable", filtered, true, true);
+    }
+
+    function renderMembers() {
+      const stats = buildStats();
+      document.getElementById("membersList").innerHTML = stats.map(player => `
+        <button class="player-card" data-profile="${player.id}" type="button">
+          <div class="avatar">${initials(player.title)}</div>
+          <div>
+            <h4>${escapeHtml(player.title)}</h4>
+            <p>${player.wins} wins from ${player.gamesPlayed} games. ${player.pointsFor} points scored.</p>
+          </div>
+          <span class="pill blue">${player.winRate}%</span>
+        </button>
+      `).join("");
+
+      document.querySelectorAll("[data-profile]").forEach(button => {
+        button.addEventListener("click", () => {
+          selectedProfileId = Number(button.dataset.profile);
+          renderProfile();
+        });
+      });
+      renderProfile();
+    }
+
+    function renderProfile() {
+      const stats = buildStats();
+      const player = stats.find(item => item.id === selectedProfileId) || stats[0];
+      if (!player) return;
+      selectedProfileId = player.id;
+      const games = state.games.filter(game => game.player1ID === player.id || game.player2ID === player.id).toSorted(byDateDesc);
+      document.getElementById("profileName").textContent = player.title;
+      document.getElementById("profileSummary").textContent = `${player.wins} wins, ${player.losses} losses, ${player.winRate}% win rate.`;
+      document.getElementById("profileBody").innerHTML = `
+        <div class="grid three">
+          <div class="kpi"><span>Games</span><strong>${player.gamesPlayed}</strong><small>All time</small></div>
+          <div class="kpi"><span>Points for</span><strong>${player.pointsFor}</strong><small>${player.pointsAgainst} against</small></div>
+          <div class="kpi"><span>Win rate</span><strong>${player.winRate}%</strong><small>${player.wins} wins</small></div>
+        </div>
+        <div style="margin-top:16px" id="profileGames"></div>
+      `;
+      renderGamesTable("profileGames", games.slice(0, 6), false);
+    }
+
+    function renderStats() {
+      const monthStats = buildStats(gamesForSelectedMonth());
+      const mostWins = monthStats.toSorted((a, b) => b.wins - a.wins)[0];
+      const mostActive = monthStats.toSorted((a, b) => b.gamesPlayed - a.gamesPlayed)[0];
+      const closest = gamesForSelectedMonth()
+        .map(game => ({ ...game, margin: Math.abs(game.player1Score - game.player2Score) }))
+        .toSorted((a, b) => a.margin - b.margin)[0];
+      document.getElementById("kpiMonth").textContent = gamesForSelectedMonth().length;
+      document.getElementById("kpiMonthSub").textContent = currentMonth() === "all" ? "All time view" : "Games in selected month";
+      document.getElementById("statMostWins").textContent = mostWins?.title || "-";
+      document.getElementById("statMostWinsSub").textContent = mostWins ? `${mostWins.wins} wins` : "";
+      document.getElementById("statMostActive").textContent = mostActive?.title || "-";
+      document.getElementById("statMostActiveSub").textContent = mostActive ? `${mostActive.gamesPlayed} games` : "";
+      document.getElementById("statClosest").textContent = closest ? `${closest.player1Score}-${closest.player2Score}` : "-";
+      document.getElementById("statClosestSub").textContent = closest ? `${closest.player1Name} vs ${closest.player2Name}` : "";
+
+      document.getElementById("monthlyTable").innerHTML = `
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Player</th><th>Games</th><th>Wins</th><th>Losses</th><th>Win rate</th><th>Points</th></tr></thead>
+            <tbody>
+              ${monthStats.map(player => `
+                <tr>
+                  <td>${escapeHtml(player.title)}</td>
+                  <td>${player.gamesPlayed}</td>
+                  <td>${player.wins}</td>
+                  <td>${player.losses}</td>
+                  <td><span class="pill gold">${player.winRate}%</span></td>
+                  <td>${player.pointsFor} for, ${player.pointsAgainst} against</td>
+                </tr>
+              `).join("")}
+            </tbody>
+          </table>
+        </div>
+      `;
+      drawPointsChart();
+      renderScoreTrends();
+    }
+
+    function renderScoreTrends() {
+      const playerId = Number(document.getElementById("trendPlayer").value) || activeMembers()[0]?.id;
+      const player = state.members.find(member => member.id === playerId);
+      if (!player) return;
+      const games = gamesForSelectedMonth()
+        .filter(game => game.player1ID === playerId || game.player2ID === playerId)
+        .toSorted((a, b) => new Date(a.gameDate) - new Date(b.gameDate));
+      const wins = games.filter(game => game.winnerID === playerId).length;
+      const points = games.map(game => game.player1ID === playerId ? game.player1Score : game.player2Score);
+      const avgScore = points.length ? Math.round((points.reduce((sum, score) => sum + score, 0) / points.length) * 10) / 10 : 0;
+
+      document.getElementById("trendGames").textContent = games.length;
+      document.getElementById("trendWins").textContent = wins;
+      document.getElementById("trendWinRate").textContent = `${games.length ? Math.round((wins / games.length) * 1000) / 10 : 0}%`;
+      document.getElementById("trendAvgScore").textContent = avgScore;
+
+      document.getElementById("trendH2H").innerHTML = activeMembers()
+        .filter(member => member.id !== playerId)
+        .map(opponent => {
+          const meetings = gamesForSelectedMonth().filter(game =>
+            (game.player1ID === playerId && game.player2ID === opponent.id) ||
+            (game.player1ID === opponent.id && game.player2ID === playerId)
+          );
+          const hWins = meetings.filter(game => game.winnerID === playerId).length;
+          return `
+            <div class="trend-record">
+              <span>${escapeHtml(opponent.title)}</span>
+              <span>${hWins}W - ${meetings.length - hWins}L</span>
+            </div>
+          `;
+        }).join("");
+
+      drawLineChart("scoreTrendChart", games.map((game, index) => ({
+        label: String(index + 1),
+        value: game.player1ID === playerId ? game.player1Score : game.player2Score
+      })));
+    }
+
+    function renderH2H() {
+      const a = Number(document.getElementById("h2hA").value);
+      const b = Number(document.getElementById("h2hB").value);
+      const games = gamesForSelectedMonth().filter(game =>
+        (game.player1ID === a && game.player2ID === b) ||
+        (game.player1ID === b && game.player2ID === a)
+      ).toSorted(byDateDesc);
+      const aWins = games.filter(game => game.winnerID === a).length;
+      const bWins = games.filter(game => game.winnerID === b).length;
+      document.getElementById("h2hAName").textContent = memberName(a);
+      document.getElementById("h2hBName").textContent = memberName(b);
+      document.getElementById("h2hMeetings").textContent = games.length;
+      document.getElementById("h2hAWins").textContent = aWins;
+      document.getElementById("h2hBWins").textContent = bWins;
+      document.getElementById("h2hLeader").textContent = aWins === bWins ? "Tied" : aWins > bWins ? memberName(a) : memberName(b);
+      renderGamesTable("h2hTable", games, true);
+    }
+
+    function drawBarChart(canvasId, rows, valueA, valueB) {
+      const canvas = document.getElementById(canvasId);
+      const ctx = canvas.getContext("2d");
+      const width = canvas.width;
+      const height = canvas.height;
+      ctx.clearRect(0, 0, width, height);
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(0, 0, width, height);
+      const pad = 42;
+      const chartW = width - pad * 2;
+      const chartH = height - pad * 2;
+      const max = Math.max(1, ...rows.flatMap(row => [row[valueA], valueB ? row[valueB] : 0]));
+      ctx.strokeStyle = "#d9e2ea";
+      ctx.lineWidth = 1;
+      for (let i = 0; i <= 4; i++) {
+        const y = pad + chartH - (chartH / 4) * i;
+        ctx.beginPath();
+        ctx.moveTo(pad, y);
+        ctx.lineTo(width - pad, y);
+        ctx.stroke();
+      }
+      const slot = chartW / Math.max(1, rows.length);
+      rows.forEach((row, index) => {
+        const x = pad + slot * index + slot * .18;
+        const barW = valueB ? slot * .26 : slot * .52;
+        const hA = chartH * (row[valueA] / max);
+        ctx.fillStyle = "#146c94";
+        ctx.fillRect(x, pad + chartH - hA, barW, hA);
+        if (valueB) {
+          const hB = chartH * (row[valueB] / max);
+          ctx.fillStyle = "#f7c948";
+          ctx.fillRect(x + barW + 4, pad + chartH - hB, barW, hB);
+        }
+        ctx.fillStyle = "#667085";
+        ctx.font = "13px Segoe UI";
+        ctx.textAlign = "center";
+        ctx.fillText(row.title, pad + slot * index + slot / 2, height - 12);
+      });
+    }
+
+    function drawLineChart(canvasId, rows) {
+      const canvas = document.getElementById(canvasId);
+      const ctx = canvas.getContext("2d");
+      const width = canvas.width;
+      const height = canvas.height;
+      const pad = 42;
+      const chartW = width - pad * 2;
+      const chartH = height - pad * 2;
+      const max = Math.max(22, ...rows.map(row => row.value));
+      ctx.clearRect(0, 0, width, height);
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(0, 0, width, height);
+      ctx.strokeStyle = "#d9e2ea";
+      ctx.lineWidth = 1;
+      for (let i = 0; i <= 4; i++) {
+        const y = pad + chartH - (chartH / 4) * i;
+        ctx.beginPath();
+        ctx.moveTo(pad, y);
+        ctx.lineTo(width - pad, y);
+        ctx.stroke();
+        ctx.fillStyle = "#667085";
+        ctx.font = "12px Segoe UI";
+        ctx.textAlign = "right";
+        ctx.fillText(Math.round((max / 4) * i), pad - 8, y + 4);
+      }
+      if (!rows.length) {
+        ctx.fillStyle = "#667085";
+        ctx.font = "16px Segoe UI";
+        ctx.textAlign = "center";
+        ctx.fillText("No games yet for this player", width / 2, height / 2);
+        return;
+      }
+      const step = rows.length === 1 ? chartW : chartW / (rows.length - 1);
+      const points = rows.map((row, index) => ({
+        x: rows.length === 1 ? pad + chartW / 2 : pad + step * index,
+        y: pad + chartH - (chartH * (row.value / max)),
+        value: row.value,
+        label: row.label
+      }));
+      ctx.strokeStyle = "#146c94";
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      points.forEach((point, index) => {
+        if (index === 0) ctx.moveTo(point.x, point.y);
+        else ctx.lineTo(point.x, point.y);
+      });
+      ctx.stroke();
+      points.forEach(point => {
+        ctx.fillStyle = "#f7c948";
+        ctx.beginPath();
+        ctx.arc(point.x, point.y, 6, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = "#17202a";
+        ctx.font = "12px Segoe UI";
+        ctx.textAlign = "center";
+        ctx.fillText(point.value, point.x, point.y - 12);
+      });
+    }
+
+    function drawWinChart() {
+      drawBarChart("winChart", buildStats(), "winRate");
+    }
+
+    function drawPointsChart() {
+      drawBarChart("pointsChart", buildStats(gamesForSelectedMonth()), "pointsFor", "pointsAgainst");
+    }
+
+    function renderAll() {
+      renderConfig();
+      renderMonthFilter();
+      renderSelects();
+      renderDashboard();
+      renderGames();
+      renderMembers();
+      renderStats();
+      renderH2H();
+    }
+
+    function showMessage(text, kind) {
+      const message = document.getElementById("formMessage");
+      message.textContent = text;
+      message.className = `message show ${kind}`;
+      window.setTimeout(() => message.className = "message", 3200);
+    }
+
+    function navigate(view) {
+      document.querySelectorAll(".view").forEach(section => section.classList.toggle("active", section.id === view));
+      document.querySelectorAll(".nav button").forEach(button => button.classList.toggle("active", button.dataset.view === view));
+      document.getElementById("pageTitle").textContent = pageMeta[view][0];
+      document.getElementById("pageSubtitle").textContent = pageMeta[view][1];
+      window.scrollTo({ top: 0, behavior: "smooth" });
+      if (view === "dashboard") drawWinChart();
+      if (view === "stats") drawPointsChart();
+    }
+
+    document.querySelectorAll("[data-view]").forEach(button => {
+      button.addEventListener("click", () => navigate(button.dataset.view));
+    });
+    document.querySelectorAll("[data-go]").forEach(button => {
+      button.addEventListener("click", () => navigate(button.dataset.go));
+    });
+
+    document.getElementById("monthFilter").addEventListener("change", () => {
+      renderDashboard();
+      renderGames();
+      renderStats();
+      renderH2H();
+    });
+
+    document.getElementById("gameSearch").addEventListener("input", renderGames);
+    document.getElementById("h2hA").addEventListener("change", renderH2H);
+    document.getElementById("h2hB").addEventListener("change", renderH2H);
+    document.getElementById("trendPlayer").addEventListener("change", renderScoreTrends);
+
+    document.getElementById("saveConfigBtn").addEventListener("click", () => {
+      saveConfig();
+      renderConfig();
+      showConnectionMessage("Configuration saved.");
+    });
+
+    document.getElementById("signInBtn").addEventListener("click", async () => {
+      try {
+        saveConfig();
+        await signIn();
+        renderConfig();
+      } catch (error) {
+        showConnectionMessage(error.message, "bad");
+      }
+    });
+
+    document.getElementById("signOutBtn").addEventListener("click", async () => {
+      try {
+        await signOut();
+      } catch (error) {
+        showConnectionMessage(error.message, "bad");
+      }
+    });
+
+    document.getElementById("loadSharePointBtn").addEventListener("click", async () => {
+      try {
+        await loadSharePointData();
+      } catch (error) {
+        dataMode = "local";
+        renderConfig();
+        showConnectionMessage(error.message, "bad");
+      }
+    });
+
+    document.getElementById("gameForm").addEventListener("submit", async event => {
+      event.preventDefault();
+      const p1Id = Number(document.getElementById("player1").value);
+      const p2Id = Number(document.getElementById("player2").value);
+      const p1Score = Number(document.getElementById("score1").value);
+      const p2Score = Number(document.getElementById("score2").value);
+      if (p1Id === p2Id) {
+        showMessage("Choose two different players.", "bad");
+        return;
+      }
+      if (!isValidScore(p1Score, p2Score)) {
+        showMessage("Invalid score. Use 21 with opponent below 20, or exactly 22-20 after deuce.", "bad");
+        return;
+      }
+      const p1 = state.members.find(member => member.id === p1Id);
+      const p2 = state.members.find(member => member.id === p2Id);
+      const winner = p1Score > p2Score ? p1 : p2;
+      const nextId = Math.max(0, ...state.games.map(game => game.id)) + 1;
+      const newGame = {
+        id: nextId,
+        title: `Game #${String(nextId).padStart(3, "0")}`,
+        player1Name: p1.title,
+        player2Name: p2.title,
+        player1ID: p1.id,
+        player2ID: p2.id,
+        player1Score: p1Score,
+        player2Score: p2Score,
+        winnerName: winner.title,
+        winnerID: winner.id,
+        gameDate: document.getElementById("gameDate").value,
+        notes: document.getElementById("notes").value.trim()
+      };
+      try {
+        if (dataMode === "sharepoint") {
+          const created = await createSharePointGame(newGame);
+          if (created?.id) newGame.id = Number(created.id);
+          state.games.push(newGame);
+          showMessage("Game saved to SharePoint.", "good");
+        } else {
+          state.games.push(newGame);
+          saveState();
+          showMessage("Game saved to the local preview.", "good");
+        }
+        document.getElementById("gameForm").reset();
+        document.getElementById("gameDate").value = todayIso;
+        renderAll();
+        navigate("dashboard");
+      } catch (error) {
+        showMessage(error.message, "bad");
+      }
+    });
+
+    document.getElementById("resetBtn").addEventListener("click", () => {
+      localStorage.removeItem(STORAGE_KEY);
+      state = structuredClone(seed);
+      selectedProfileId = state.members[0]?.id;
+      renderAll();
+      showMessage("Preview data has been reset.", "good");
+    });
+
+    document.getElementById("exportBtn").addEventListener("click", () => {
+      const columns = ["Title", "Player1Name", "Player2Name", "Player1ID", "Player2ID", "Player1Score", "Player2Score", "WinnerName", "WinnerID", "GameDate", "Notes"];
+      const rows = state.games.toSorted(byDateDesc).map(game => [
+        game.title, game.player1Name, game.player2Name, game.player1ID, game.player2ID,
+        game.player1Score, game.player2Score, game.winnerName, game.winnerID, game.gameDate, game.notes
+      ]);
+      const csv = [columns, ...rows].map(row => row.map(value => `"${String(value ?? "").replaceAll('"', '""')}"`).join(",")).join("\n");
+      const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = "ping-pong-games.csv";
+      link.click();
+      URL.revokeObjectURL(url);
+    });
+
+    renderAll();
+    restoreCachedSignIn();
+  </script>
+</body>
+</html>

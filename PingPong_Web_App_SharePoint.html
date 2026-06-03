@@ -937,9 +937,7 @@
               <input id="cfgGamesList" value="PingPong_Games">
             </label>
             <div class="wide">
-              <button class="btn primary" id="saveConfigBtn" type="button">Save config</button>
               <button class="btn subtle" id="signInBtn" type="button">Sign in</button>
-              <button class="btn subtle" id="loadSharePointBtn" type="button">Load SharePoint data</button>
               <button class="btn danger" id="signOutBtn" type="button">Sign out</button>
               <div id="connectionMessage" class="message" role="status"></div>
             </div>
@@ -1770,11 +1768,14 @@
     document.getElementById("h2hB").addEventListener("change", renderH2H);
     document.getElementById("trendPlayer").addEventListener("change", renderScoreTrends);
 
-    document.getElementById("saveConfigBtn").addEventListener("click", () => {
-      saveConfig();
-      renderConfig();
-      showConnectionMessage("Configuration saved.");
-    });
+    const saveConfigBtn = document.getElementById("saveConfigBtn");
+    if (saveConfigBtn) {
+      saveConfigBtn.addEventListener("click", () => {
+        saveConfig();
+        renderConfig();
+        showConnectionMessage("Configuration saved.");
+      });
+    }
 
     document.getElementById("signInBtn").addEventListener("click", async () => {
       try {
@@ -1795,15 +1796,18 @@
       }
     });
 
-    document.getElementById("loadSharePointBtn").addEventListener("click", async () => {
-      try {
-        await loadSharePointData();
-      } catch (error) {
-        dataMode = "local";
-        renderConfig();
-        showConnectionMessage(error.message, "bad");
-      }
-    });
+    const loadSharePointBtn = document.getElementById("loadSharePointBtn");
+    if (loadSharePointBtn) {
+      loadSharePointBtn.addEventListener("click", async () => {
+        try {
+          await loadSharePointData();
+        } catch (error) {
+          dataMode = "local";
+          renderConfig();
+          showConnectionMessage(error.message, "bad");
+        }
+      });
+    }
 
     document.getElementById("gameForm").addEventListener("submit", async event => {
       event.preventDefault();

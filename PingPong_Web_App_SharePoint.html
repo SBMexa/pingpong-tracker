@@ -1780,6 +1780,7 @@
       try {
         saveConfig();
         await signIn();
+        await loadSharePointData(false);
         renderConfig();
       } catch (error) {
         showConnectionMessage(error.message, "bad");

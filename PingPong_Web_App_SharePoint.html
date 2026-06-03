@@ -548,6 +548,57 @@
 
     .mini-row strong { color: #0047a8; }
 
+    .trophy-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .trophy-card {
+      min-height: 154px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fff;
+      padding: 14px;
+      display: grid;
+      gap: 8px;
+      align-content: start;
+    }
+
+    .trophy-card.locked {
+      opacity: .48;
+      filter: grayscale(.8);
+    }
+
+    .trophy-icon {
+      width: 42px;
+      height: 42px;
+      border-radius: var(--radius);
+      display: grid;
+      place-items: center;
+      background: #fff5ce;
+      color: #8a6500;
+      font-weight: 900;
+      font-size: 22px;
+    }
+
+    .trophy-card h4 {
+      margin: 0;
+      font-size: 15px;
+    }
+
+    .trophy-card p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.35;
+    }
+
+    .trophy-card small {
+      color: #0047a8;
+      font-weight: 800;
+    }
+
     .player-card h4 {
       margin: 0 0 4px;
       font-size: 15px;
@@ -782,6 +833,7 @@
       .grid.two,
       .grid.three,
       .grid.four,
+      .trophy-grid,
       .form-grid {
         grid-template-columns: 1fr;
       }
@@ -822,6 +874,7 @@
         <button data-view="games"><span class="ico">G</span>Games</button>
         <button data-view="members"><span class="ico">M</span>Members</button>
         <button data-view="stats"><span class="ico">S</span>Stats</button>
+        <button data-view="trophies"><span class="ico">T</span>Trophies</button>
         <button data-view="h2h"><span class="ico">H</span>Head-to-head</button>
       </nav>
 
@@ -1148,6 +1201,49 @@
           </div>
           <div id="h2hMatrix"></div>
         </div>
+
+        <div class="grid two" style="margin-top:16px">
+          <div class="card">
+            <div class="section-head">
+              <div>
+                <h3>Monthly trend</h3>
+                <p>Games played each month.</p>
+              </div>
+            </div>
+            <canvas id="monthTrendChart" width="760" height="300"></canvas>
+          </div>
+          <div class="card">
+            <div class="section-head">
+              <div>
+                <h3>Head-to-head over time</h3>
+                <p>Rivalry volume by month.</p>
+              </div>
+            </div>
+            <div id="h2hOverTime" class="mini-list"></div>
+          </div>
+        </div>
+      </section>
+
+      <section id="trophies" class="view">
+        <div class="card">
+          <div class="section-head">
+            <div>
+              <h3>Trophy cabinet</h3>
+              <p>Earned achievements, current holder titles, and named office trophies.</p>
+            </div>
+            <div class="filters">
+              <select id="trophyPlayer" aria-label="Select trophy player"></select>
+              <select id="trophyType" aria-label="Trophy type">
+                <option value="all">All trophies</option>
+                <option value="earned">Earned</option>
+                <option value="holder">Holder</option>
+                <option value="fun">Fun</option>
+              </select>
+            </div>
+          </div>
+          <div id="trophySummary" class="grid four" style="margin-bottom:16px"></div>
+          <div id="trophyGrid" class="trophy-grid"></div>
+        </div>
       </section>
 
       <section id="h2h" class="view">
@@ -1313,6 +1409,7 @@
       games: ["Games", "Search, filter, and review match history."],
       members: ["Members", "Player records, recent form, and profile stats."],
       stats: ["Stats", "Leaderboards, monthly form, points, and standout games."],
+      trophies: ["Trophies", "Player cabinets, current title holders, and office records."],
       h2h: ["Head-to-head", "Compare two staff members directly."],
       settings: ["Settings", "Connect Microsoft sign-in and SharePoint list storage."]
     };
@@ -1845,15 +1942,139 @@
       const insights = statInsights();
       const stats = buildStats();
       const longestCurrent = stats.toSorted((a, b) => b.streak.count - a.streak.count)[0];
+      const longestAllTime = longestAllTimeStreak();
       const mostPoints = stats.toSorted((a, b) => b.pointsFor - a.pointsFor)[0];
       const mostPlayed = rivalryData().toSorted((a, b) => b.games.length - a.games.length)[0];
       return [
         ["Biggest win", insights.biggest ? `${insights.biggest.winnerName} ${gameScore(insights.biggest)}` : "-"],
         ["Closest game", insights.closest ? `${insights.closest.player1Name} vs ${insights.closest.player2Name} ${gameScore(insights.closest)}` : "-"],
         ["Longest current streak", longestCurrent ? `${longestCurrent.title}: ${longestCurrent.streak.label}` : "-"],
+        ["Longest all-time streak", longestAllTime ? `${longestAllTime.title}: ${longestAllTime.count}W` : "-"],
         ["Most points scored", mostPoints ? `${mostPoints.title}: ${mostPoints.pointsFor}` : "-"],
         ["Most played rivalry", mostPlayed ? `${mostPlayed.name}: ${mostPlayed.games.length} games` : "-"]
       ];
+    }
+
+    function playerGames(playerId, games = state.games) {
+      return games.filter(game => game.player1ID === playerId || game.player2ID === playerId).toSorted((a, b) => new Date(a.gameDate) - new Date(b.gameDate));
+    }
+
+    function playerWins(playerId, games = state.games) {
+      return playerGames(playerId, games).filter(game => game.winnerID === playerId);
+    }
+
+    function longestWinStreakFor(playerId, games = state.games) {
+      let best = 0;
+      let current = 0;
+      playerGames(playerId, games).forEach(game => {
+        if (game.winnerID === playerId) {
+          current += 1;
+          best = Math.max(best, current);
+        } else {
+          current = 0;
+        }
+      });
+      return best;
+    }
+
+    function longestAllTimeStreak() {
+      return buildStats(state.games, state.members)
+        .map(player => ({ title: player.title, id: player.id, count: longestWinStreakFor(player.id) }))
+        .toSorted((a, b) => b.count - a.count)[0];
+    }
+
+    function monthBuckets() {
+      const buckets = new Map();
+      state.games.forEach(game => {
+        const key = game.gameDate.slice(0, 7);
+        const bucket = buckets.get(key) || [];
+        bucket.push(game);
+        buckets.set(key, bucket);
+      });
+      return [...buckets.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([month, games]) => ({ month, games }));
+    }
+
+    function trophyDefinitionsFor(player) {
+      const games = playerGames(player.id);
+      const wins = games.filter(game => game.winnerID === player.id);
+      const stats = buildStats(state.games, state.members).find(item => item.id === player.id) || player;
+      const opponents = new Set(games.map(game => game.player1ID === player.id ? game.player2ID : game.player1ID));
+      const activeOpponentCount = Math.max(0, activeMembers().filter(member => member.id !== player.id).length);
+      const deuceWins = wins.filter(game => Math.min(game.player1Score, game.player2Score) >= 20);
+      const closeGames = games.filter(game => gameMargin(game) === 2);
+      const noteGames = games.filter(game => (game.notes || "").trim());
+      const comebackWins = wins.filter(game => /comeback/i.test(game.notes || ""));
+      const weekGames = gamesThisWeek().filter(game => game.player1ID === player.id || game.player2ID === player.id);
+      const currentChampion = championForGames(state.games);
+      const monthChampion = championForGames(monthGames());
+      const weekChampion = championForGames(gamesThisWeek());
+      const insights = statInsights();
+      const mostWins = buildStats(state.games, state.members).toSorted((a, b) => b.wins - a.wins)[0];
+      const mostActive = buildStats(state.games, state.members).toSorted((a, b) => b.gamesPlayed - a.gamesPlayed)[0];
+      const pointsLeader = buildStats(state.games, state.members).toSorted((a, b) => b.pointsFor - a.pointsFor)[0];
+      const bestAvg = buildStats(state.games, state.members).filter(item => item.gamesPlayed > 0).toSorted((a, b) => b.avgScore - a.avgScore)[0];
+      const longestCurrent = buildStats(state.games, state.members).toSorted((a, b) => b.streak.count - a.streak.count)[0];
+      const longestAll = longestAllTimeStreak();
+      const improved = mostImprovedPlayer();
+      const cleanWins = wins.filter(game => (game.player1ID === player.id ? game.player2Score : game.player1Score) <= 10);
+      const dominantWins = wins.filter(game => gameMargin(game) >= 10);
+      const giantKills = wins.filter(game => game.winnerID === player.id && currentChampion && (game.player1ID === currentChampion.id || game.player2ID === currentChampion.id) && player.id !== currentChampion.id);
+      return [
+        ["earned", "medal", "Debutant", "Played their first recorded game.", games.length >= 1, `${games.length}/1 games`],
+        ["earned", "trophy", "First Blood", "Won their first recorded game.", wins.length >= 1, `${wins.length}/1 wins`],
+        ["earned", "medal", "Regular", "Played 5 games.", games.length >= 5, `${games.length}/5 games`],
+        ["earned", "medal", "Table Veteran", "Played 25 games.", games.length >= 25, `${games.length}/25 games`],
+        ["earned", "medal", "Centurion", "Played 100 games.", games.length >= 100, `${games.length}/100 games`],
+        ["earned", "trophy", "Winner's Circle", "Reached 5 total wins.", wins.length >= 5, `${wins.length}/5 wins`],
+        ["earned", "trophy", "Serial Winner", "Reached 25 total wins.", wins.length >= 25, `${wins.length}/25 wins`],
+        ["earned", "crown", "Club Legend", "Reached 100 total wins.", wins.length >= 100, `${wins.length}/100 wins`],
+        ["earned", "star", "Perfect Start", "Won their first recorded game.", games[0]?.winnerID === player.id, games.length ? "First game checked" : "No games"],
+        ["earned", "shield", "Clean Win", "Won with opponent scoring 10 or fewer.", cleanWins.length > 0, `${cleanWins.length} clean wins`],
+        ["earned", "bolt", "Dominant Win", "Won by 10+ points.", dominantWins.length > 0, `${dominantWins.length} dominant wins`],
+        ["earned", "target", "Nail-Biter", "Won by exactly 2 points.", wins.some(game => gameMargin(game) === 2), `${wins.filter(game => gameMargin(game) === 2).length} wins`],
+        ["earned", "target", "Deuce Survivor", "Won a deuce game.", deuceWins.length > 0, `${deuceWins.length} deuce wins`],
+        ["earned", "target", "Marathon Winner", "Won a game beyond 25 points.", wins.some(game => Math.max(game.player1Score, game.player2Score) > 25), "Beyond 25"],
+        ["earned", "chat", "Comeback Story", "Won with comeback in notes.", comebackWins.length > 0, `${comebackWins.length} comeback wins`],
+        ["earned", "swords", "Giant Killer", "Beat the current champion.", giantKills.length > 0, `${giantKills.length} champion wins`],
+        ["earned", "flame", "Hot Streak", "Won 3 games in a row.", longestWinStreakFor(player.id) >= 3, `${longestWinStreakFor(player.id)}/3`],
+        ["earned", "flame", "On Fire", "Won 5 games in a row.", longestWinStreakFor(player.id) >= 5, `${longestWinStreakFor(player.id)}/5`],
+        ["earned", "flame", "Untouchable", "Won 10 games in a row.", longestWinStreakFor(player.id) >= 10, `${longestWinStreakFor(player.id)}/10`],
+        ["earned", "target", "Deuce Addict", "Played 5 deuce games.", games.filter(game => Math.min(game.player1Score, game.player2Score) >= 20).length >= 5, "5 deuce games"],
+        ["earned", "target", "Pressure Player", "Won 5 deuce games.", deuceWins.length >= 5, `${deuceWins.length}/5 wins`],
+        ["earned", "target", "Close Call Collector", "Played 10 games decided by 2 points.", closeGames.length >= 10, `${closeGames.length}/10 close games`],
+        ["earned", "swords", "Social Player", "Played every active opponent.", opponents.size >= activeOpponentCount && activeOpponentCount > 0, `${opponents.size}/${activeOpponentCount}`],
+        ["earned", "swords", "Round Robin Winner", "Beat every active opponent.", activeMembers().filter(member => member.id !== player.id).every(opponent => wins.some(game => game.player1ID === opponent.id || game.player2ID === opponent.id)), "Beat all active opponents"],
+        ["earned", "crown", "Monthly Champion", "Finished top of a monthly leaderboard.", monthChampion?.id === player.id, "Current month"],
+        ["earned", "bolt", "Most Improved Month", "Biggest month-on-month improvement.", improved?.id === player.id, improved ? `+${improved.delta}` : "Needs data"],
+        ["earned", "chat", "Banter Contributor", "Logged 5 games with notes.", noteGames.length >= 5, `${noteGames.length}/5 notes`],
+        ["earned", "chat", "Historian", "Logged 25 games with notes.", noteGames.length >= 25, `${noteGames.length}/25 notes`],
+        ["earned", "medal", "Busy Week", "Played 3 games this week.", weekGames.length >= 3, `${weekGames.length}/3 this week`],
+        ["earned", "medal", "Table Marathon", "Played 5 games this week.", weekGames.length >= 5, `${weekGames.length}/5 this week`],
+        ["earned", "star", "Point Scorer", "Reached 250 total points.", stats.pointsFor >= 250, `${stats.pointsFor}/250`],
+        ["earned", "star", "Point Machine", "Reached 1,000 total points.", stats.pointsFor >= 1000, `${stats.pointsFor}/1000`],
+        ["earned", "target", "Clutch Finisher", "Won 23-21 or higher.", wins.some(game => Math.max(game.player1Score, game.player2Score) >= 23 && gameMargin(game) === 2), "23-21 or higher"],
+        ["holder", "crown", "Current Champion", "Highest all-time win rate.", currentChampion?.id === player.id, currentChampion ? `Held by ${currentChampion.title}` : "-"],
+        ["holder", "crown", "Monthly Champion", "Best win rate this month.", monthChampion?.id === player.id, monthChampion ? `Held by ${monthChampion.title}` : "-"],
+        ["holder", "crown", "Weekly Champion", "Best win rate this week.", weekChampion?.id === player.id, weekChampion ? `Held by ${weekChampion.title}` : "-"],
+        ["holder", "trophy", "Most Wins", "Most total wins.", mostWins?.id === player.id, mostWins ? `Held by ${mostWins.title}` : "-"],
+        ["holder", "medal", "Most Active Player", "Most total games played.", mostActive?.id === player.id, mostActive ? `Held by ${mostActive.title}` : "-"],
+        ["holder", "flame", "Form Player", "Best record across last 5 games.", longestCurrent?.id === player.id, longestCurrent ? `Held by ${longestCurrent.title}` : "-"],
+        ["holder", "flame", "Streak Holder", "Longest current streak.", longestCurrent?.id === player.id, longestCurrent ? `Held by ${longestCurrent.title}` : "-"],
+        ["holder", "flame", "Longest Streak Record", "Longest all-time win streak.", longestAll?.id === player.id, longestAll ? `Held by ${longestAll.title}` : "-"],
+        ["holder", "target", "Biggest Win Holder", "Owns the largest winning margin.", insights.biggest?.winnerID === player.id, insights.biggest ? `Held by ${insights.biggest.winnerName}` : "-"],
+        ["holder", "target", "Closest Game Survivor", "Most notable 2-point win.", insights.closest?.winnerID === player.id, insights.closest ? `Held by ${insights.closest.winnerName}` : "-"],
+        ["holder", "star", "Points Leader", "Most total points scored.", pointsLeader?.id === player.id, pointsLeader ? `Held by ${pointsLeader.title}` : "-"],
+        ["holder", "star", "Best Average Score", "Highest average points per game.", bestAvg?.id === player.id, bestAvg ? `Held by ${bestAvg.title}` : "-"],
+        ["fun", "crown", "The Paddle Crown", "Current overall champion.", currentChampion?.id === player.id, currentChampion ? `Held by ${currentChampion.title}` : "-"],
+        ["fun", "trophy", "The Golden Bat", "Most wins.", mostWins?.id === player.id, mostWins ? `Held by ${mostWins.title}` : "-"],
+        ["fun", "medal", "The Iron Paddle", "Most games played.", mostActive?.id === player.id, mostActive ? `Held by ${mostActive.title}` : "-"],
+        ["fun", "target", "The Ice Bath", "Best clutch/deuce moments.", deuceWins.length > 0, `${deuceWins.length} deuce wins`],
+        ["fun", "shield", "The Wall", "Best defensive wins.", cleanWins.length > 0, `${cleanWins.length} clean wins`],
+        ["fun", "flame", "The Fire Extinguisher", "Ended someone else's streak.", giantKills.length > 0, `${giantKills.length} big wins`],
+        ["fun", "target", "The Marathon Paddle", "Highest-scoring win.", wins.some(game => Math.max(game.player1Score, game.player2Score) > 25), "Beyond 25"],
+        ["fun", "swords", "The Rivalry Belt", "Head-to-head owner material.", opponents.size > 0 && wins.length > 0, `${wins.length} rivalry wins`],
+        ["fun", "star", "The Spreadsheet Slayer", "Strong combined stat profile.", stats.winRate >= 50 && stats.gamesPlayed >= 5, `${stats.winRate}% win rate`]
+      ].map(([type, icon, name, description, unlocked, progress]) => ({ type, icon, name, description, unlocked, progress }));
     }
 
     function escapeHtml(value) {
@@ -1882,7 +2103,7 @@
 
     function renderSelects() {
       const options = activeMembers().map(member => `<option value="${member.id}">${escapeHtml(member.title)}</option>`).join("");
-      ["player1", "player2", "h2hA", "h2hB", "trendPlayer", "editPlayer1", "editPlayer2"].forEach(id => {
+      ["player1", "player2", "h2hA", "h2hB", "trendPlayer", "trophyPlayer", "editPlayer1", "editPlayer2"].forEach(id => {
         const el = document.getElementById(id);
         if (!el) return;
         const current = el.value;
@@ -2124,6 +2345,17 @@
           <div class="mini-row"><span>Recent form</span><strong>${formHtml(player.form)}</strong></div>
           <div class="mini-row"><span>Current streak</span><strong>${player.streak.label}</strong></div>
         </div>
+        <div style="margin-top:16px">
+          <div class="section-head">
+            <div>
+              <h3>Trophy highlights</h3>
+              <p>Recently unlocked and currently held titles.</p>
+            </div>
+          </div>
+          <div class="trophy-grid">
+            ${trophyDefinitionsFor(player).filter(trophy => trophy.unlocked).slice(0, 4).map(renderTrophyCard).join("") || `<div class="empty">No trophies yet.</div>`}
+          </div>
+        </div>
         <div style="margin-top:16px" id="profileGames"></div>
       `;
       renderGamesTable("profileGames", games.slice(0, 6), false);
@@ -2178,6 +2410,70 @@
       renderHallOfFame();
       renderRivalryInsights();
       renderH2HMatrix();
+      renderMonthlyTrend();
+      renderH2HOverTime();
+    }
+
+    function trophyIcon(icon) {
+      return {
+        crown: "♛",
+        trophy: "★",
+        flame: "▲",
+        shield: "◆",
+        target: "◎",
+        bolt: "↗",
+        medal: "●",
+        chat: "✎",
+        swords: "×",
+        star: "✦"
+      }[icon] || "★";
+    }
+
+    function renderTrophyCard(trophy) {
+      return `
+        <div class="trophy-card ${trophy.unlocked ? "" : "locked"}">
+          <div class="trophy-icon">${trophyIcon(trophy.icon)}</div>
+          <h4>${escapeHtml(trophy.name)}</h4>
+          <p>${escapeHtml(trophy.description)}</p>
+          <small>${escapeHtml(trophy.progress || (trophy.unlocked ? "Unlocked" : "Locked"))}</small>
+        </div>
+      `;
+    }
+
+    function renderTrophies() {
+      const playerId = Number(document.getElementById("trophyPlayer").value) || activeMembers()[0]?.id || state.members[0]?.id;
+      const type = document.getElementById("trophyType").value || "all";
+      const player = state.members.find(member => member.id === playerId) || state.members[0];
+      if (!player) return;
+      const trophies = trophyDefinitionsFor(player);
+      const filtered = type === "all" ? trophies : trophies.filter(trophy => trophy.type === type);
+      const earned = trophies.filter(trophy => trophy.type === "earned" && trophy.unlocked).length;
+      const holder = trophies.filter(trophy => trophy.type === "holder" && trophy.unlocked).length;
+      const fun = trophies.filter(trophy => trophy.type === "fun" && trophy.unlocked).length;
+      document.getElementById("trophySummary").innerHTML = [
+        ["Earned unlocked", earned],
+        ["Holder titles", holder],
+        ["Fun trophies", fun],
+        ["Total visible", filtered.length]
+      ].map(([label, value]) => `<div class="card kpi"><span>${label}</span><strong>${value}</strong><small>${escapeHtml(player.title)}</small></div>`).join("");
+      document.getElementById("trophyGrid").innerHTML = filtered.map(renderTrophyCard).join("");
+    }
+
+    function renderMonthlyTrend() {
+      drawLineChart("monthTrendChart", monthBuckets().map(bucket => ({
+        label: bucket.month,
+        value: bucket.games.length
+      })));
+    }
+
+    function renderH2HOverTime() {
+      const rows = monthBuckets().slice(-6).map(bucket => {
+        const top = rivalryData(bucket.games).toSorted((a, b) => b.games.length - a.games.length)[0];
+        return [bucket.month, top ? `${top.name}: ${top.games.length} games` : "No rivalries"];
+      });
+      document.getElementById("h2hOverTime").innerHTML = rows.length
+        ? rows.map(([month, value]) => `<div class="mini-row"><span>${month}</span><strong>${escapeHtml(value)}</strong></div>`).join("")
+        : `<div class="empty">No monthly rivalry data.</div>`;
     }
 
     function renderHallOfFame() {
@@ -2337,7 +2633,7 @@
       const pad = 42;
       const chartW = width - pad * 2;
       const chartH = height - pad * 2;
-      const max = Math.max(22, ...rows.map(row => row.value));
+      const max = canvasId === "scoreTrendChart" ? Math.max(22, ...rows.map(row => row.value)) : Math.max(1, ...rows.map(row => row.value));
       ctx.clearRect(0, 0, width, height);
       ctx.fillStyle = "#ffffff";
       ctx.fillRect(0, 0, width, height);
@@ -2405,6 +2701,7 @@
       renderMembers();
       renderStats();
       renderH2H();
+      renderTrophies();
     }
 
     function showMessage(text, kind) {
@@ -2486,6 +2783,8 @@
     document.getElementById("h2hA").addEventListener("change", renderH2H);
     document.getElementById("h2hB").addEventListener("change", renderH2H);
     document.getElementById("trendPlayer").addEventListener("change", renderScoreTrends);
+    document.getElementById("trophyPlayer").addEventListener("change", renderTrophies);
+    document.getElementById("trophyType").addEventListener("change", renderTrophies);
 
     const saveConfigBtn = document.getElementById("saveConfigBtn");
     if (saveConfigBtn) {

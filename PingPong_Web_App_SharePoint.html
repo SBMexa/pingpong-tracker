@@ -1271,6 +1271,13 @@
       if (!unlocked) {
         document.getElementById("pageTitle").textContent = "Sign in required";
         document.getElementById("pageSubtitle").textContent = "Use your Microsoft 365 account to load the app.";
+      } else {
+        const activeView = document.querySelector(".view.active")?.id;
+        const view = activeView && activeView !== "authGate" && pageMeta[activeView] ? activeView : "dashboard";
+        document.querySelectorAll(".view").forEach(section => section.classList.toggle("active", section.id === view));
+        document.querySelectorAll(".nav button").forEach(button => button.classList.toggle("active", button.dataset.view === view));
+        document.getElementById("pageTitle").textContent = pageMeta[view][0];
+        document.getElementById("pageSubtitle").textContent = pageMeta[view][1];
       }
       const signedIn = !!graphAccount;
       ["signInBtn", "sideSignInBtn"].forEach(id => {

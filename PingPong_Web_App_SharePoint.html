@@ -854,7 +854,7 @@
           <div class="section-head">
             <div>
               <h3>Log a game</h3>
-              <p>First to 21 wins. If it reaches 20-20, the only valid deuce result is 22-20.</p>
+              <p>First to 21 wins, but from 20-20 play continues until someone leads by 2 clear points. There is no point cap.</p>
             </div>
           </div>
 
@@ -866,10 +866,10 @@
               <select id="player2" required></select>
             </label>
             <label>Player 1 score
-              <input id="score1" type="number" min="0" max="22" inputmode="numeric" required>
+              <input id="score1" type="number" min="0" inputmode="numeric" required>
             </label>
             <label>Player 2 score
-              <input id="score2" type="number" min="0" max="22" inputmode="numeric" required>
+              <input id="score2" type="number" min="0" inputmode="numeric" required>
             </label>
             <label>Game date
               <input id="gameDate" type="date" required>
@@ -1104,10 +1104,10 @@
           <select id="editPlayer2" required></select>
         </label>
         <label>Player 1 score
-          <input id="editScore1" type="number" min="0" max="22" inputmode="numeric" required>
+          <input id="editScore1" type="number" min="0" inputmode="numeric" required>
         </label>
         <label>Player 2 score
-          <input id="editScore2" type="number" min="0" max="22" inputmode="numeric" required>
+          <input id="editScore2" type="number" min="0" inputmode="numeric" required>
         </label>
         <label>Game date
           <input id="editGameDate" type="date" required>
@@ -1521,9 +1521,7 @@
     function isValidScore(p1, p2) {
       if (!Number.isFinite(p1) || !Number.isFinite(p2)) return false;
       if (p1 < 0 || p2 < 0 || p1 === p2) return false;
-      if (Math.max(p1, p2) === 21 && Math.min(p1, p2) < 20) return true;
-      if (Math.max(p1, p2) === 22 && Math.min(p1, p2) === 20) return true;
-      return false;
+      return Math.max(p1, p2) >= 21 && Math.abs(p1 - p2) >= 2;
     }
 
     function buildStats(games = state.games) {
@@ -2130,10 +2128,9 @@
       if (!Number.isFinite(p1) || !Number.isFinite(p2)) return "Enter both scores.";
       if (p1 < 0 || p2 < 0) return "Scores cannot be negative.";
       if (p1 === p2) return "A game cannot end in a draw.";
-      if (Math.max(p1, p2) < 21) return "One player must reach 21, or 22 after deuce.";
-      if (Math.max(p1, p2) === 21 && Math.min(p1, p2) >= 20) return "At 20-20 deuce, the final score must be 22-20.";
-      if (Math.max(p1, p2) === 22 && Math.min(p1, p2) !== 20) return "A 22-point game is only valid as 22-20.";
-      return "Invalid score. Use 21 with opponent below 20, or exactly 22-20 after deuce.";
+      if (Math.max(p1, p2) < 21) return "One player must reach at least 21.";
+      if (Math.abs(p1 - p2) < 2) return "The winner must lead by 2 clear points.";
+      return "Invalid score. One player must reach at least 21 and win by 2 clear points.";
     }
 
     function navigate(view) {

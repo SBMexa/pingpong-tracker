@@ -183,6 +183,38 @@
       margin-bottom: 3px;
     }
 
+    body.auth-required .nav {
+      display: none;
+    }
+
+    body.auth-required main .topbar .actions {
+      display: none;
+    }
+
+    body.auth-required .view {
+      display: none !important;
+    }
+
+    body.auth-required #authGate {
+      display: block !important;
+    }
+
+    .auth-panel {
+      max-width: 760px;
+      margin-top: 32px;
+    }
+
+    .auth-panel h3 {
+      margin: 0 0 8px;
+      font-size: 24px;
+    }
+
+    .auth-panel p {
+      color: var(--muted);
+      margin: 0 0 18px;
+      line-height: 1.55;
+    }
+
     main {
       padding: 26px;
       min-width: 0;
@@ -849,6 +881,18 @@
         </div>
       </section>
 
+      <section id="authGate" class="view">
+        <div class="card auth-panel">
+          <div class="section-head">
+            <div>
+              <h3>Sign in required</h3>
+              <p>Use your Mexa Microsoft 365 account to open the Ping Pong tracker and load live SharePoint data.</p>
+            </div>
+          </div>
+          <button class="btn primary" id="gateSignInBtn" type="button">Sign in</button>
+        </div>
+      </section>
+
       <section id="log" class="view">
         <div class="card">
           <div class="section-head">
@@ -1221,7 +1265,13 @@
       document.getElementById("dataModeTitle").textContent = dataMode === "sharepoint" ? "SharePoint live mode" : "Local preview mode";
       document.getElementById("dataModeText").textContent = dataMode === "sharepoint"
         ? `Connected to ${appConfig.membersListName} and ${appConfig.gamesListName}.`
-        : "Configure Microsoft sign-in to connect SharePoint lists.";
+        : "Sign in to load the Ping Pong tracker.";
+      const unlocked = dataMode === "sharepoint";
+      document.body.classList.toggle("auth-required", !unlocked);
+      if (!unlocked) {
+        document.getElementById("pageTitle").textContent = "Sign in required";
+        document.getElementById("pageSubtitle").textContent = "Use your Microsoft 365 account to load the app.";
+      }
       const signedIn = !!graphAccount;
       ["signInBtn", "sideSignInBtn"].forEach(id => {
         const button = document.getElementById(id);
@@ -1295,6 +1345,7 @@
       await msalApp.logoutPopup({ account: graphAccount });
       graphAccount = null;
       dataMode = "local";
+      state = structuredClone(seed);
       renderConfig();
       showConnectionMessage("Signed out. The app is back in local preview mode.");
     }
@@ -2200,6 +2251,7 @@
 
     document.getElementById("sideSignInBtn").addEventListener("click", handleSignInClick);
     document.getElementById("sideSignOutBtn").addEventListener("click", handleSignOutClick);
+    document.getElementById("gateSignInBtn").addEventListener("click", handleSignInClick);
 
     const loadSharePointBtn = document.getElementById("loadSharePointBtn");
     if (loadSharePointBtn) {

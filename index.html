@@ -4,6 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Mexa Ping Pong Tracker - SharePoint</title>
+  <link rel="icon" href='data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="10" fill="%23f7c948"/><circle cx="44" cy="18" r="6" fill="%23102f3c"/><path d="M14 40c12-2 23-8 31-20" stroke="%23102f3c" stroke-width="6" stroke-linecap="round"/><path d="M20 42h24" stroke="%23102f3c" stroke-width="5" stroke-linecap="round"/></svg>'>
   <script src="msal-browser.min.js"></script>
   <script>
     if (!window.msal) {
@@ -672,6 +673,53 @@
     .message.good { background: #e9f7ef; color: var(--success); }
     .message.bad { background: #ffe9e9; color: var(--danger); }
 
+    .toast-stack {
+      position: fixed;
+      right: 18px;
+      bottom: 18px;
+      display: grid;
+      gap: 10px;
+      z-index: 40;
+    }
+
+    .toast {
+      min-width: 260px;
+      max-width: 420px;
+      padding: 12px 14px;
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      font-weight: 800;
+      background: #e9f7ef;
+      color: var(--success);
+    }
+
+    .toast.bad {
+      background: #ffe9e9;
+      color: var(--danger);
+    }
+
+    .loading-bar {
+      display: none;
+      position: fixed;
+      left: 0;
+      right: 0;
+      top: 0;
+      height: 4px;
+      z-index: 50;
+      background: linear-gradient(90deg, var(--primary), var(--accent), var(--primary-2));
+      background-size: 200% 100%;
+      animation: loadingSlide 1s linear infinite;
+    }
+
+    body.loading .loading-bar {
+      display: block;
+    }
+
+    @keyframes loadingSlide {
+      from { background-position: 0 0; }
+      to { background-position: 200% 0; }
+    }
+
     .split-score {
       font-weight: 900;
       color: var(--ink);
@@ -756,6 +804,8 @@
   </style>
 </head>
 <body>
+  <div class="loading-bar" aria-hidden="true"></div>
+  <div class="toast-stack" id="toastStack" aria-live="polite"></div>
   <div class="app">
     <aside class="side">
       <div class="brand">
@@ -879,6 +929,16 @@
             <div id="championsList" class="mini-list"></div>
           </div>
         </div>
+
+        <div class="card" style="margin-top:16px">
+          <div class="section-head">
+            <div>
+              <h3>Game comments</h3>
+              <p>Latest notes and office banter from recorded games.</p>
+            </div>
+          </div>
+          <div id="banterFeed" class="mini-list"></div>
+        </div>
       </section>
 
       <section id="authGate" class="view">
@@ -939,6 +999,13 @@
             </div>
             <div class="filters">
               <input id="gameSearch" type="search" placeholder="Search player, winner, note">
+              <select id="gamePlayerFilter" aria-label="Filter by player"></select>
+              <select id="gameWinnerFilter" aria-label="Filter by winner"></select>
+              <select id="gameTypeFilter" aria-label="Filter by game type">
+                <option value="all">All games</option>
+                <option value="close">Close games</option>
+                <option value="deuce">Deuce games</option>
+              </select>
             </div>
           </div>
           <div id="gamesTable"></div>
@@ -954,6 +1021,17 @@
                 <p>Player records from the members list.</p>
               </div>
             </div>
+            <form id="memberForm" class="form-grid" style="margin-bottom:14px">
+              <label>Name
+                <input id="memberName" placeholder="Player name" required>
+              </label>
+              <label>Email
+                <input id="memberEmail" type="email" placeholder="name@mexasolutions.com">
+              </label>
+              <div class="wide">
+                <button class="btn primary" type="submit">Add member</button>
+              </div>
+            </form>
             <div id="membersList" class="player-list"></div>
           </div>
           <div class="card">
@@ -971,9 +1049,14 @@
       <section id="stats" class="view">
         <div class="grid four">
           <div class="card kpi"><span>Games this month</span><strong id="kpiMonth">0</strong><small id="kpiMonthSub">Games logged</small></div>
+          <div class="card kpi"><span>Month champion</span><strong id="statMonthChampion">-</strong><small id="statMonthChampionSub"></small></div>
+          <div class="card kpi"><span>Most improved</span><strong id="statImproved">-</strong><small id="statImprovedSub"></small></div>
           <div class="card kpi"><span>Most wins</span><strong id="statMostWins">-</strong><small id="statMostWinsSub"></small></div>
+        </div>
+        <div class="grid three" style="margin-top:16px">
           <div class="card kpi"><span>Most active</span><strong id="statMostActive">-</strong><small id="statMostActiveSub"></small></div>
           <div class="card kpi"><span>Closest game</span><strong id="statClosest">-</strong><small id="statClosestSub"></small></div>
+          <div class="card kpi"><span>Best average score</span><strong id="statBestAvg">-</strong><small id="statBestAvgSub"></small></div>
         </div>
         <div class="grid two" style="margin-top:16px">
           <div class="card">
@@ -1054,6 +1137,16 @@
             </div>
             <div id="rivalryInsights" class="mini-list"></div>
           </div>
+        </div>
+
+        <div class="card" style="margin-top:16px">
+          <div class="section-head">
+            <div>
+              <h3>Head-to-head matrix</h3>
+              <p>Each player’s wins against every other player.</p>
+            </div>
+          </div>
+          <div id="h2hMatrix"></div>
         </div>
       </section>
 
@@ -1438,18 +1531,24 @@
     async function loadSharePointData(interactive = true) {
       saveConfig();
       if (interactive) showConnectionMessage("Loading SharePoint data...");
-      const refs = await getSharePointRefs(interactive);
-      const members = await graphFetch(`/sites/${encodeURIComponent(refs.site.id)}/lists/${encodeURIComponent(refs.membersList.id)}/items?$expand=fields&$top=200`, {}, interactive);
-      const games = await graphFetch(`/sites/${encodeURIComponent(refs.site.id)}/lists/${encodeURIComponent(refs.gamesList.id)}/items?$expand=fields&$top=500`, {}, interactive);
-      state = {
-        members: members.value.map(normalizeMember).filter(member => member.title),
-        games: games.value.map(normalizeGame).filter(game => game.player1ID && game.player2ID)
-      };
-      await loadProfilePhotos(false);
-      selectedProfileId = state.members[0]?.id;
-      dataMode = "sharepoint";
-      renderAll();
-      showConnectionMessage(`Loaded ${state.members.length} members and ${state.games.length} games from SharePoint.`);
+      setLoading(true);
+      try {
+        const refs = await getSharePointRefs(interactive);
+        const members = await graphFetch(`/sites/${encodeURIComponent(refs.site.id)}/lists/${encodeURIComponent(refs.membersList.id)}/items?$expand=fields&$top=200`, {}, interactive);
+        const games = await graphFetch(`/sites/${encodeURIComponent(refs.site.id)}/lists/${encodeURIComponent(refs.gamesList.id)}/items?$expand=fields&$top=500`, {}, interactive);
+        state = {
+          members: members.value.map(normalizeMember).filter(member => member.title),
+          games: games.value.map(normalizeGame).filter(game => game.player1ID && game.player2ID)
+        };
+        await loadProfilePhotos(false);
+        selectedProfileId = state.members[0]?.id;
+        dataMode = "sharepoint";
+        renderAll();
+        showConnectionMessage(`Loaded ${state.members.length} members and ${state.games.length} games from SharePoint.`);
+        showToast("SharePoint data loaded.");
+      } finally {
+        setLoading(false);
+      }
     }
 
     async function createSharePointGame(game) {
@@ -1470,6 +1569,32 @@
             GameDate: game.gameDate,
             Notes: game.notes
           }
+        })
+      }, true);
+    }
+
+    async function createSharePointMember(member) {
+      const refs = await getSharePointRefs(true);
+      return graphFetch(`/sites/${encodeURIComponent(refs.site.id)}/lists/${encodeURIComponent(refs.membersList.id)}/items`, {
+        method: "POST",
+        body: JSON.stringify({
+          fields: {
+            Title: member.title,
+            Email: member.email || "",
+            Active: member.active !== false
+          }
+        })
+      }, true);
+    }
+
+    async function updateSharePointMember(member) {
+      const refs = await getSharePointRefs(true);
+      return graphFetch(`/sites/${encodeURIComponent(refs.site.id)}/lists/${encodeURIComponent(refs.membersList.id)}/items/${encodeURIComponent(member.id)}/fields`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          Title: member.title,
+          Email: member.email || "",
+          Active: member.active !== false
         })
       }, true);
     }
@@ -1582,8 +1707,8 @@
       return Math.max(p1, p2) >= 21 && Math.abs(p1 - p2) >= 2;
     }
 
-    function buildStats(games = state.games) {
-      return activeMembers().map(member => {
+    function buildStats(games = state.games, members = activeMembers()) {
+      return members.map(member => {
         const played = games
           .filter(game => game.player1ID === member.id || game.player2ID === member.id)
           .toSorted((a, b) => new Date(a.gameDate) - new Date(b.gameDate));
@@ -1677,6 +1802,27 @@
       return state.games.filter(game => game.gameDate.startsWith(month));
     }
 
+    function previousMonthGames() {
+      const now = new Date();
+      const previous = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      const month = `${previous.getFullYear()}-${String(previous.getMonth() + 1).padStart(2, "0")}`;
+      return state.games.filter(game => game.gameDate.startsWith(month));
+    }
+
+    function mostImprovedPlayer() {
+      const current = buildStats(monthGames(), state.members);
+      const previous = buildStats(previousMonthGames(), state.members);
+      const candidates = current.map(player => {
+        const prior = previous.find(item => item.id === player.id);
+        return {
+          ...player,
+          delta: Math.round((player.winRate - (prior?.winRate || 0)) * 10) / 10,
+          previousGames: prior?.gamesPlayed || 0
+        };
+      }).filter(player => player.gamesPlayed > 0 && player.previousGames > 0);
+      return candidates.toSorted((a, b) => b.delta - a.delta)[0];
+    }
+
     function rivalryData(games = state.games) {
       const map = new Map();
       games.forEach(game => {
@@ -1749,6 +1895,14 @@
       if (document.getElementById("h2hA").value === document.getElementById("h2hB").value) {
         document.getElementById("h2hB").selectedIndex = Math.min(1, activeMembers().length - 1);
       }
+      const filterOptions = `<option value="all">All players</option>` + activeMembers().map(member => `<option value="${member.id}">${escapeHtml(member.title)}</option>`).join("");
+      ["gamePlayerFilter", "gameWinnerFilter"].forEach(id => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        const current = el.value || "all";
+        el.innerHTML = filterOptions;
+        el.value = [...el.options].some(option => option.value === current) ? current : "all";
+      });
       document.getElementById("gameDate").value = document.getElementById("gameDate").value || todayIso;
     }
 
@@ -1783,6 +1937,17 @@
       drawWinChart();
       renderMyRecentGames();
       renderChampions();
+      renderBanterFeed();
+    }
+
+    function renderBanterFeed() {
+      const notes = state.games
+        .filter(game => (game.notes || "").trim())
+        .toSorted(byDateDesc)
+        .slice(0, 6);
+      document.getElementById("banterFeed").innerHTML = notes.length
+        ? notes.map(game => `<div class="mini-row"><span>${escapeHtml(game.player1Name)} vs ${escapeHtml(game.player2Name)} · ${formatDate(game.gameDate)}</span><strong>${escapeHtml(game.notes)}</strong></div>`).join("")
+        : `<div class="empty">No notes yet.</div>`;
     }
 
     function renderMyRecentGames() {
@@ -1888,24 +2053,32 @@
 
     function renderGames() {
       const query = document.getElementById("gameSearch").value.trim().toLowerCase();
+      const playerFilter = document.getElementById("gamePlayerFilter").value;
+      const winnerFilter = document.getElementById("gameWinnerFilter").value;
+      const typeFilter = document.getElementById("gameTypeFilter").value;
       const filtered = gamesForSelectedMonth().filter(game => {
         const haystack = `${game.title} ${game.player1Name} ${game.player2Name} ${game.winnerName} ${game.notes}`.toLowerCase();
-        return !query || haystack.includes(query);
+        if (query && !haystack.includes(query)) return false;
+        if (playerFilter !== "all" && game.player1ID !== Number(playerFilter) && game.player2ID !== Number(playerFilter)) return false;
+        if (winnerFilter !== "all" && game.winnerID !== Number(winnerFilter)) return false;
+        if (typeFilter === "close" && gameMargin(game) > 2) return false;
+        if (typeFilter === "deuce" && Math.min(game.player1Score, game.player2Score) < 20) return false;
+        return true;
       }).toSorted(byDateDesc);
       renderGamesTable("gamesTable", filtered, true, true);
     }
 
     function renderMembers() {
-      const stats = buildStats();
+      const stats = buildStats(state.games, state.members);
       document.getElementById("membersList").innerHTML = stats.map(player => `
-        <button class="player-card" data-profile="${player.id}" type="button">
+        <div class="player-card" data-profile="${player.id}" role="button" tabindex="0">
           ${avatarHtml(player)}
           <div>
             <h4>${escapeHtml(player.title)}</h4>
-            <p>${player.wins} wins from ${player.gamesPlayed} games · ${player.streak.label}</p>
+            <p>${player.wins} wins from ${player.gamesPlayed} games · ${player.streak.label} · ${player.active ? "Active" : "Inactive"}</p>
           </div>
-          <span>${formHtml(player.form)}</span>
-        </button>
+          <span>${formHtml(player.form)} <button class="btn subtle icon" data-toggle-member="${player.id}" type="button">${player.active ? "Deactivate" : "Activate"}</button></span>
+        </div>
       `).join("");
 
       document.querySelectorAll("[data-profile]").forEach(button => {
@@ -1914,11 +2087,27 @@
           renderProfile();
         });
       });
+      document.querySelectorAll("[data-toggle-member]").forEach(button => {
+        button.addEventListener("click", async event => {
+          event.stopPropagation();
+          const member = state.members.find(item => item.id === Number(button.dataset.toggleMember));
+          if (!member) return;
+          const updated = { ...member, active: !member.active };
+          try {
+            if (dataMode === "sharepoint") await updateSharePointMember(updated);
+            state.members = state.members.map(item => item.id === updated.id ? updated : item);
+            showToast(`${updated.title} is now ${updated.active ? "active" : "inactive"}.`);
+            renderAll();
+          } catch (error) {
+            showToast(error.message, "bad");
+          }
+        });
+      });
       renderProfile();
     }
 
     function renderProfile() {
-      const stats = buildStats();
+      const stats = buildStats(state.games, state.members);
       const player = stats.find(item => item.id === selectedProfileId) || stats[0];
       if (!player) return;
       selectedProfileId = player.id;
@@ -1944,17 +2133,26 @@
       const monthStats = buildStats(gamesForSelectedMonth());
       const mostWins = monthStats.toSorted((a, b) => b.wins - a.wins)[0];
       const mostActive = monthStats.toSorted((a, b) => b.gamesPlayed - a.gamesPlayed)[0];
+      const monthChampion = championForGames(monthGames());
+      const improved = mostImprovedPlayer();
+      const bestAvg = monthStats.filter(player => player.gamesPlayed > 0).toSorted((a, b) => b.avgScore - a.avgScore)[0];
       const closest = gamesForSelectedMonth()
         .map(game => ({ ...game, margin: Math.abs(game.player1Score - game.player2Score) }))
         .toSorted((a, b) => a.margin - b.margin)[0];
       document.getElementById("kpiMonth").textContent = gamesForSelectedMonth().length;
       document.getElementById("kpiMonthSub").textContent = currentMonth() === "all" ? "All time view" : "Games in selected month";
+      document.getElementById("statMonthChampion").textContent = monthChampion?.title || "-";
+      document.getElementById("statMonthChampionSub").textContent = monthChampion ? `${monthChampion.winRate}% win rate` : "No month games";
+      document.getElementById("statImproved").textContent = improved?.title || "-";
+      document.getElementById("statImprovedSub").textContent = improved ? `+${improved.delta} pts vs previous month` : "Needs two months";
       document.getElementById("statMostWins").textContent = mostWins?.title || "-";
       document.getElementById("statMostWinsSub").textContent = mostWins ? `${mostWins.wins} wins` : "";
       document.getElementById("statMostActive").textContent = mostActive?.title || "-";
       document.getElementById("statMostActiveSub").textContent = mostActive ? `${mostActive.gamesPlayed} games` : "";
       document.getElementById("statClosest").textContent = closest ? `${closest.player1Score}-${closest.player2Score}` : "-";
       document.getElementById("statClosestSub").textContent = closest ? `${closest.player1Name} vs ${closest.player2Name}` : "";
+      document.getElementById("statBestAvg").textContent = bestAvg?.title || "-";
+      document.getElementById("statBestAvgSub").textContent = bestAvg ? `${bestAvg.avgScore} avg points` : "";
 
       document.getElementById("monthlyTable").innerHTML = `
         <div class="table-wrap">
@@ -1979,6 +2177,7 @@
       renderScoreTrends();
       renderHallOfFame();
       renderRivalryInsights();
+      renderH2HMatrix();
     }
 
     function renderHallOfFame() {
@@ -1999,6 +2198,39 @@
       document.getElementById("rivalryInsights").innerHTML = rows
         .map(([label, value]) => `<div class="mini-row"><span>${label}</span><strong>${escapeHtml(value)}</strong></div>`)
         .join("");
+    }
+
+    function renderH2HMatrix() {
+      const members = activeMembers();
+      if (!members.length) {
+        document.getElementById("h2hMatrix").innerHTML = `<div class="empty">No active members.</div>`;
+        return;
+      }
+      document.getElementById("h2hMatrix").innerHTML = `
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th>Player</th>${members.map(member => `<th>${escapeHtml(member.title)}</th>`).join("")}</tr>
+            </thead>
+            <tbody>
+              ${members.map(row => `
+                <tr>
+                  <td><strong>${escapeHtml(row.title)}</strong></td>
+                  ${members.map(col => {
+                    if (row.id === col.id) return `<td class="muted">-</td>`;
+                    const games = state.games.filter(game =>
+                      (game.player1ID === row.id && game.player2ID === col.id) ||
+                      (game.player1ID === col.id && game.player2ID === row.id)
+                    );
+                    const wins = games.filter(game => game.winnerID === row.id).length;
+                    return `<td>${wins}-${games.length - wins}</td>`;
+                  }).join("")}
+                </tr>
+              `).join("")}
+            </tbody>
+          </table>
+        </div>
+      `;
     }
 
     function renderScoreTrends() {
@@ -2182,6 +2414,19 @@
       window.setTimeout(() => message.className = "message", 3200);
     }
 
+    function showToast(text, kind = "good") {
+      const stack = document.getElementById("toastStack");
+      const toast = document.createElement("div");
+      toast.className = `toast ${kind === "bad" ? "bad" : ""}`;
+      toast.textContent = text;
+      stack.appendChild(toast);
+      window.setTimeout(() => toast.remove(), 4200);
+    }
+
+    function setLoading(isLoading) {
+      document.body.classList.toggle("loading", isLoading);
+    }
+
     function scoreValidationMessage(p1, p2) {
       if (!Number.isFinite(p1) || !Number.isFinite(p2)) return "Enter both scores.";
       if (p1 < 0 || p2 < 0) return "Scores cannot be negative.";
@@ -2235,6 +2480,9 @@
     });
 
     document.getElementById("gameSearch").addEventListener("input", renderGames);
+    document.getElementById("gamePlayerFilter").addEventListener("change", renderGames);
+    document.getElementById("gameWinnerFilter").addEventListener("change", renderGames);
+    document.getElementById("gameTypeFilter").addEventListener("change", renderGames);
     document.getElementById("h2hA").addEventListener("change", renderH2H);
     document.getElementById("h2hB").addEventListener("change", renderH2H);
     document.getElementById("trendPlayer").addEventListener("change", renderScoreTrends);
@@ -2259,6 +2507,38 @@
     document.getElementById("sideSignInBtn").addEventListener("click", handleSignInClick);
     document.getElementById("sideSignOutBtn").addEventListener("click", handleSignOutClick);
     document.getElementById("gateSignInBtn").addEventListener("click", handleSignInClick);
+
+    document.getElementById("memberForm").addEventListener("submit", async event => {
+      event.preventDefault();
+      const title = document.getElementById("memberName").value.trim();
+      const email = document.getElementById("memberEmail").value.trim();
+      if (!title) {
+        showToast("Enter a member name.", "bad");
+        return;
+      }
+      const member = {
+        id: Math.max(0, ...state.members.map(item => item.id)) + 1,
+        title,
+        email,
+        active: true
+      };
+      try {
+        setLoading(true);
+        if (dataMode === "sharepoint") {
+          const created = await createSharePointMember(member);
+          if (created?.id) member.id = Number(created.id);
+        }
+        state.members.push(member);
+        if (dataMode !== "sharepoint") saveState();
+        document.getElementById("memberForm").reset();
+        showToast(`${member.title} added.`);
+        renderAll();
+      } catch (error) {
+        showToast(error.message, "bad");
+      } finally {
+        setLoading(false);
+      }
+    });
 
     const loadSharePointBtn = document.getElementById("loadSharePointBtn");
     if (loadSharePointBtn) {
@@ -2311,10 +2591,12 @@
           if (created?.id) newGame.id = Number(created.id);
           state.games.push(newGame);
           showMessage("Game saved to SharePoint.", "good");
+          showToast("Game saved to SharePoint.");
         } else {
           state.games.push(newGame);
           saveState();
           showMessage("Game saved to the local preview.", "good");
+          showToast("Game saved.");
         }
         document.getElementById("gameForm").reset();
         document.getElementById("gameDate").value = todayIso;
@@ -2335,11 +2617,11 @@
       const p1Score = Number(document.getElementById("editScore1").value);
       const p2Score = Number(document.getElementById("editScore2").value);
       if (p1Id === p2Id) {
-        window.alert("Choose two different players.");
+        showToast("Choose two different players.", "bad");
         return;
       }
       if (!isValidScore(p1Score, p2Score)) {
-        window.alert(scoreValidationMessage(p1Score, p2Score));
+        showToast(scoreValidationMessage(p1Score, p2Score), "bad");
         return;
       }
       const existing = state.games.find(game => game.id === gameId);
@@ -2367,8 +2649,9 @@
         closeEditModal();
         renderAll();
         navigate("games");
+        showToast("Game updated.");
       } catch (error) {
-        window.alert(error.message);
+        showToast(error.message, "bad");
       }
     });
 
@@ -2391,8 +2674,9 @@
         document.getElementById("confirmModal").classList.remove("show");
         renderAll();
         navigate("games");
+        showToast("Game deleted.");
       } catch (error) {
-        window.alert(error.message);
+        showToast(error.message, "bad");
       } finally {
         button.disabled = false;
         button.textContent = "Delete game";

@@ -164,6 +164,19 @@
       line-height: 1.45;
     }
 
+    .side-actions {
+      display: grid;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .side-actions .btn {
+      width: 100%;
+      justify-content: center;
+      min-height: 36px;
+      padding: 0 10px;
+    }
+
     .side-card strong {
       display: block;
       color: #fff;
@@ -444,6 +457,10 @@
       background: #fff;
     }
 
+    .player-card button {
+      justify-self: end;
+    }
+
     .avatar {
       width: 46px;
       height: 46px;
@@ -453,7 +470,50 @@
       background: linear-gradient(135deg, var(--primary), var(--primary-2));
       color: #fff;
       font-weight: 900;
+      object-fit: cover;
     }
+
+    img.avatar {
+      display: block;
+    }
+
+    .form-dots {
+      display: inline-flex;
+      gap: 4px;
+    }
+
+    .form-dot {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      display: inline-grid;
+      place-items: center;
+      font-size: 12px;
+      font-weight: 900;
+      color: #fff;
+    }
+
+    .form-dot.win { background: var(--success); }
+    .form-dot.loss { background: var(--danger); }
+
+    .mini-list {
+      display: grid;
+      gap: 9px;
+    }
+
+    .mini-row {
+      min-height: 42px;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 12px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fff;
+    }
+
+    .mini-row strong { color: #0047a8; }
 
     .player-card h4 {
       margin: 0 0 4px;
@@ -597,6 +657,38 @@
       background: #fbfcfe;
     }
 
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(16, 47, 60, .48);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      z-index: 20;
+    }
+
+    .modal-backdrop.show {
+      display: flex;
+    }
+
+    .modal {
+      width: min(720px, 100%);
+      max-height: calc(100vh - 48px);
+      overflow: auto;
+      background: var(--panel);
+      border-radius: var(--radius);
+      box-shadow: 0 28px 80px rgba(0,0,0,.28);
+      padding: 20px;
+    }
+
+    .modal-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      margin-top: 16px;
+    }
+
     @media (max-width: 980px) {
       .app { grid-template-columns: 1fr; }
       .side {
@@ -649,12 +741,15 @@
         <button data-view="members"><span class="ico">M</span>Members</button>
         <button data-view="stats"><span class="ico">S</span>Stats</button>
         <button data-view="h2h"><span class="ico">H</span>Head-to-head</button>
-        <button data-view="settings"><span class="ico">C</span>Settings</button>
       </nav>
 
       <div class="side-card">
         <strong id="dataModeTitle">Local preview mode</strong>
         <span id="dataModeText">Configure Microsoft sign-in to connect SharePoint lists.</span>
+        <div class="side-actions">
+          <button class="btn primary" id="sideSignInBtn" type="button">Sign in</button>
+          <button class="btn danger" id="sideSignOutBtn" type="button">Sign out</button>
+        </div>
       </div>
     </aside>
 
@@ -728,6 +823,28 @@
               </div>
             </div>
             <canvas id="winChart" width="640" height="300"></canvas>
+          </div>
+        </div>
+
+        <div class="grid two" style="margin-top:16px">
+          <div class="card">
+            <div class="section-head">
+              <div>
+                <h3>My recent games</h3>
+                <p id="myGamesSubtitle">Shown when your Microsoft account matches a member.</p>
+              </div>
+            </div>
+            <div id="myRecentGames"></div>
+          </div>
+
+          <div class="card">
+            <div class="section-head">
+              <div>
+                <h3>Champions</h3>
+                <p>All-time, monthly, and weekly leaders.</p>
+              </div>
+            </div>
+            <div id="championsList" class="mini-list"></div>
           </div>
         </div>
       </section>
@@ -872,6 +989,28 @@
             </div>
           </div>
         </div>
+
+        <div class="grid two" style="margin-top:16px">
+          <div class="card">
+            <div class="section-head">
+              <div>
+                <h3>Hall of fame</h3>
+                <p>Notable records from the current data set.</p>
+              </div>
+            </div>
+            <div id="hallOfFame" class="mini-list"></div>
+          </div>
+
+          <div class="card">
+            <div class="section-head">
+              <div>
+                <h3>Rivalry insights</h3>
+                <p>Most played and most balanced matchups.</p>
+              </div>
+            </div>
+            <div id="rivalryInsights" class="mini-list"></div>
+          </div>
+        </div>
       </section>
 
       <section id="h2h" class="view">
@@ -948,6 +1087,57 @@
     </main>
   </div>
 
+  <div class="modal-backdrop" id="gameModal" role="dialog" aria-modal="true" aria-labelledby="gameModalTitle">
+    <div class="modal">
+      <div class="section-head">
+        <div>
+          <h3 id="gameModalTitle">Edit game</h3>
+          <p id="gameModalSubtitle">Correct the date, score, players, or notes.</p>
+        </div>
+      </div>
+      <form id="editGameForm" class="form-grid">
+        <input id="editGameId" type="hidden">
+        <label>Player 1
+          <select id="editPlayer1" required></select>
+        </label>
+        <label>Player 2
+          <select id="editPlayer2" required></select>
+        </label>
+        <label>Player 1 score
+          <input id="editScore1" type="number" min="0" max="22" inputmode="numeric" required>
+        </label>
+        <label>Player 2 score
+          <input id="editScore2" type="number" min="0" max="22" inputmode="numeric" required>
+        </label>
+        <label>Game date
+          <input id="editGameDate" type="date" required>
+        </label>
+        <label class="wide">Notes
+          <textarea id="editNotes" placeholder="Optional match notes"></textarea>
+        </label>
+        <div class="wide modal-actions">
+          <button class="btn subtle" id="cancelEditBtn" type="button">Cancel</button>
+          <button class="btn primary" type="submit">Save changes</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="confirmModal" role="dialog" aria-modal="true" aria-labelledby="confirmTitle">
+    <div class="modal">
+      <div class="section-head">
+        <div>
+          <h3 id="confirmTitle">Delete game?</h3>
+          <p id="confirmText">This will remove the result from SharePoint.</p>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn subtle" id="cancelDeleteBtn" type="button">Cancel</button>
+        <button class="btn danger" id="confirmDeleteBtn" type="button">Delete game</button>
+      </div>
+    </div>
+  </div>
+
   <script>
     const STORAGE_KEY = "mexa_pingpong_preview_v1";
     const CONFIG_KEY = "mexa_pingpong_sharepoint_config_v1";
@@ -977,6 +1167,8 @@
     let graphAccount = null;
     let dataMode = "local";
     let selectedProfileId = state.members[0]?.id;
+    let photoUrls = {};
+    let pendingDeleteGameId = null;
 
     const pageMeta = {
       dashboard: ["Dashboard", "A live view of the office table tennis table."],
@@ -1030,6 +1222,15 @@
       document.getElementById("dataModeText").textContent = dataMode === "sharepoint"
         ? `Connected to ${appConfig.membersListName} and ${appConfig.gamesListName}.`
         : "Configure Microsoft sign-in to connect SharePoint lists.";
+      const signedIn = !!graphAccount;
+      ["signInBtn", "sideSignInBtn"].forEach(id => {
+        const button = document.getElementById(id);
+        if (button) button.style.display = signedIn ? "none" : "inline-flex";
+      });
+      ["signOutBtn", "sideSignOutBtn"].forEach(id => {
+        const button = document.getElementById(id);
+        if (button) button.style.display = signedIn ? "inline-flex" : "none";
+      });
     }
 
     function loadState() {
@@ -1142,7 +1343,8 @@
       return {
         id: Number(item.id),
         title: fields.Title || `Member ${item.id}`,
-        active: fields.Active !== false
+        active: fields.Active !== false,
+        email: fields.Email || fields.UserEmail || fields.ProfileEmail || fields.Mail || ""
       };
     }
 
@@ -1185,6 +1387,7 @@
         members: members.value.map(normalizeMember).filter(member => member.title),
         games: games.value.map(normalizeGame).filter(game => game.player1ID && game.player2ID)
       };
+      await loadProfilePhotos(false);
       selectedProfileId = state.members[0]?.id;
       dataMode = "sharepoint";
       renderAll();
@@ -1213,6 +1416,26 @@
       }, true);
     }
 
+    async function updateSharePointGame(game) {
+      const refs = await getSharePointRefs(true);
+      return graphFetch(`/sites/${encodeURIComponent(refs.site.id)}/lists/${encodeURIComponent(refs.gamesList.id)}/items/${encodeURIComponent(game.id)}/fields`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          Title: game.title,
+          Player1Name: game.player1Name,
+          Player2Name: game.player2Name,
+          Player1ID: game.player1ID,
+          Player2ID: game.player2ID,
+          Player1Score: game.player1Score,
+          Player2Score: game.player2Score,
+          WinnerName: game.winnerName,
+          WinnerID: game.winnerID,
+          GameDate: game.gameDate,
+          Notes: game.notes
+        })
+      }, true);
+    }
+
     async function deleteSharePointGame(gameId) {
       const refs = await getSharePointRefs(true);
       return graphFetch(`/sites/${encodeURIComponent(refs.site.id)}/lists/${encodeURIComponent(refs.gamesList.id)}/items/${encodeURIComponent(gameId)}`, {
@@ -1233,6 +1456,24 @@
         dataMode = "local";
         renderConfig();
         showConnectionMessage("Cached sign-in needs renewal. Click Sign in, then Load SharePoint data.", "bad");
+      }
+    }
+
+    async function loadProfilePhotos(interactive = false) {
+      const membersWithEmail = state.members.filter(member => member.email && !photoUrls[member.id]);
+      for (const member of membersWithEmail) {
+        try {
+          const token = await getToken(interactive);
+          const response = await fetch(`https://graph.microsoft.com/v1.0/users/${encodeURIComponent(member.email)}/photo/$value`, {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          if (response.ok) {
+            const blob = await response.blob();
+            photoUrls[member.id] = URL.createObjectURL(blob);
+          }
+        } catch {
+          // Profile photos are optional; initials remain the fallback.
+        }
       }
     }
 
@@ -1262,6 +1503,21 @@
       return name.split(" ").map(part => part[0]).join("").slice(0, 2).toUpperCase();
     }
 
+    function avatarHtml(member) {
+      if (photoUrls[member.id]) {
+        return `<img class="avatar" src="${photoUrls[member.id]}" alt="${escapeHtml(member.title)}">`;
+      }
+      return `<div class="avatar">${initials(member.title)}</div>`;
+    }
+
+    function myMember() {
+      if (!graphAccount) return null;
+      const username = (graphAccount.username || "").toLowerCase();
+      if (!username) return null;
+      return state.members.find(member => (member.email || "").toLowerCase() === username)
+        || state.members.find(member => username.startsWith(member.title.toLowerCase()));
+    }
+
     function isValidScore(p1, p2) {
       if (!Number.isFinite(p1) || !Number.isFinite(p2)) return false;
       if (p1 < 0 || p2 < 0 || p1 === p2) return false;
@@ -1272,8 +1528,12 @@
 
     function buildStats(games = state.games) {
       return activeMembers().map(member => {
-        const played = games.filter(game => game.player1ID === member.id || game.player2ID === member.id);
+        const played = games
+          .filter(game => game.player1ID === member.id || game.player2ID === member.id)
+          .toSorted((a, b) => new Date(a.gameDate) - new Date(b.gameDate));
         const wins = played.filter(game => game.winnerID === member.id).length;
+        const recent = played.slice(-5).map(game => game.winnerID === member.id ? "W" : "L");
+        const streak = currentStreak(played, member.id);
         const pointsFor = played.reduce((sum, game) => {
           if (game.player1ID === member.id) return sum + game.player1Score;
           return sum + game.player2Score;
@@ -1289,9 +1549,29 @@
           losses: played.length - wins,
           winRate: played.length ? Math.round((wins / played.length) * 1000) / 10 : 0,
           pointsFor,
-          pointsAgainst
+          pointsAgainst,
+          avgScore: played.length ? Math.round((pointsFor / played.length) * 10) / 10 : 0,
+          form: recent,
+          streak
         };
       }).sort((a, b) => b.winRate - a.winRate || b.wins - a.wins || b.gamesPlayed - a.gamesPlayed);
+    }
+
+    function currentStreak(games, playerId) {
+      const ordered = games.toSorted((a, b) => new Date(b.gameDate) - new Date(a.gameDate));
+      if (!ordered.length) return { type: "-", count: 0, label: "No games" };
+      const firstWon = ordered[0].winnerID === playerId;
+      let count = 0;
+      for (const game of ordered) {
+        if ((game.winnerID === playerId) === firstWon) count += 1;
+        else break;
+      }
+      return { type: firstWon ? "W" : "L", count, label: `${count}${firstWon ? "W" : "L"} streak` };
+    }
+
+    function formHtml(form) {
+      if (!form.length) return `<span class="muted">No form</span>`;
+      return `<span class="form-dots">${form.map(result => `<span class="form-dot ${result === "W" ? "win" : "loss"}">${result}</span>`).join("")}</span>`;
     }
 
     function gameMargin(game) {
@@ -1331,6 +1611,49 @@
       };
     }
 
+    function championForGames(games) {
+      return buildStats(games).find(player => player.gamesPlayed > 0);
+    }
+
+    function monthGames() {
+      const now = new Date();
+      const month = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+      return state.games.filter(game => game.gameDate.startsWith(month));
+    }
+
+    function rivalryData(games = state.games) {
+      const map = new Map();
+      games.forEach(game => {
+        const ids = [game.player1ID, game.player2ID].sort((a, b) => a - b);
+        const key = ids.join("-");
+        const existing = map.get(key) || { ids, games: [], aWins: 0, bWins: 0 };
+        existing.games.push(game);
+        if (game.winnerID === ids[0]) existing.aWins += 1;
+        if (game.winnerID === ids[1]) existing.bWins += 1;
+        map.set(key, existing);
+      });
+      return [...map.values()].map(item => ({
+        ...item,
+        name: `${memberName(item.ids[0])} vs ${memberName(item.ids[1])}`,
+        balance: Math.abs(item.aWins - item.bWins)
+      }));
+    }
+
+    function hallOfFameRows() {
+      const insights = statInsights();
+      const stats = buildStats();
+      const longestCurrent = stats.toSorted((a, b) => b.streak.count - a.streak.count)[0];
+      const mostPoints = stats.toSorted((a, b) => b.pointsFor - a.pointsFor)[0];
+      const mostPlayed = rivalryData().toSorted((a, b) => b.games.length - a.games.length)[0];
+      return [
+        ["Biggest win", insights.biggest ? `${insights.biggest.winnerName} ${gameScore(insights.biggest)}` : "-"],
+        ["Closest game", insights.closest ? `${insights.closest.player1Name} vs ${insights.closest.player2Name} ${gameScore(insights.closest)}` : "-"],
+        ["Longest current streak", longestCurrent ? `${longestCurrent.title}: ${longestCurrent.streak.label}` : "-"],
+        ["Most points scored", mostPoints ? `${mostPoints.title}: ${mostPoints.pointsFor}` : "-"],
+        ["Most played rivalry", mostPlayed ? `${mostPlayed.name}: ${mostPlayed.games.length} games` : "-"]
+      ];
+    }
+
     function escapeHtml(value) {
       return String(value ?? "")
         .replaceAll("&", "&amp;")
@@ -1357,8 +1680,9 @@
 
     function renderSelects() {
       const options = activeMembers().map(member => `<option value="${member.id}">${escapeHtml(member.title)}</option>`).join("");
-      ["player1", "player2", "h2hA", "h2hB", "trendPlayer"].forEach(id => {
+      ["player1", "player2", "h2hA", "h2hB", "trendPlayer", "editPlayer1", "editPlayer2"].forEach(id => {
         const el = document.getElementById(id);
+        if (!el) return;
         const current = el.value;
         el.innerHTML = options;
         if (current) el.value = current;
@@ -1390,10 +1714,10 @@
 
       document.getElementById("leaderboardList").innerHTML = allStats.slice(0, 5).map((player, index) => `
         <div class="player-card">
-          <div class="avatar">${initials(player.title)}</div>
+          ${avatarHtml(player)}
           <div>
             <h4>${index + 1}. ${escapeHtml(player.title)}</h4>
-            <p>${player.wins} wins, ${player.losses} losses, ${player.gamesPlayed} games</p>
+            <p>${player.wins} wins, ${player.losses} losses, ${player.gamesPlayed} games · ${player.streak.label}</p>
           </div>
           <span class="pill gold">${player.winRate}%</span>
         </div>
@@ -1401,6 +1725,32 @@
 
       renderGamesTable("recentGames", state.games.toSorted(byDateDesc).slice(0, 6), false);
       drawWinChart();
+      renderMyRecentGames();
+      renderChampions();
+    }
+
+    function renderMyRecentGames() {
+      const member = myMember();
+      const target = document.getElementById("myRecentGames");
+      if (!member) {
+        document.getElementById("myGamesSubtitle").textContent = "Add an Email column to PingPong_Members to match users exactly.";
+        target.innerHTML = `<div class="empty">Sign in and match your Microsoft email to a member to see this panel.</div>`;
+        return;
+      }
+      document.getElementById("myGamesSubtitle").textContent = `${member.title}'s latest results.`;
+      const games = state.games.filter(game => game.player1ID === member.id || game.player2ID === member.id).toSorted(byDateDesc).slice(0, 5);
+      renderGamesTable("myRecentGames", games, false);
+    }
+
+    function renderChampions() {
+      const all = championForGames(state.games);
+      const month = championForGames(monthGames());
+      const week = championForGames(gamesThisWeek());
+      document.getElementById("championsList").innerHTML = [
+        ["All-time champion", all ? `${all.title} (${all.winRate}%)` : "-"],
+        ["Month champion", month ? `${month.title} (${month.winRate}%)` : "-"],
+        ["Week champion", week ? `${week.title} (${week.winRate}%)` : "-"]
+      ].map(([label, value]) => `<div class="mini-row"><span>${label}</span><strong>${value}</strong></div>`).join("");
     }
 
     function renderGamesTable(targetId, games, includeNotes = true, includeActions = false) {
@@ -1432,7 +1782,7 @@
                   <td><span class="split-score">${game.player1Score}-${game.player2Score}</span></td>
                   <td><span class="pill">${escapeHtml(game.winnerName)}</span></td>
                   ${includeNotes ? `<td class="muted">${escapeHtml(game.notes || "")}</td>` : ""}
-                  ${includeActions ? `<td><button class="btn danger icon" data-delete-game="${game.id}" type="button">Delete</button></td>` : ""}
+                  ${includeActions ? `<td><button class="btn subtle icon" data-edit-game="${game.id}" type="button">Edit</button> <button class="btn danger icon" data-delete-game="${game.id}" type="button">Delete</button></td>` : ""}
                 </tr>
               `).join("")}
             </tbody>
@@ -1440,33 +1790,44 @@
         </div>
       `;
       if (includeActions) attachDeleteHandlers(target);
+      if (includeActions) attachEditHandlers(target);
     }
 
     function attachDeleteHandlers(container) {
       container.querySelectorAll("[data-delete-game]").forEach(button => {
-        button.addEventListener("click", async () => {
+        button.addEventListener("click", () => {
           const gameId = Number(button.dataset.deleteGame);
           const game = state.games.find(item => item.id === gameId);
           if (!game) return;
-          const confirmed = window.confirm(`Delete ${game.title}: ${game.player1Name} vs ${game.player2Name}?`);
-          if (!confirmed) return;
-          button.disabled = true;
-          button.textContent = "Deleting";
-          try {
-            if (dataMode === "sharepoint") {
-              await deleteSharePointGame(game.id);
-            }
-            state.games = state.games.filter(item => item.id !== game.id);
-            if (dataMode !== "sharepoint") saveState();
-            renderAll();
-            navigate("games");
-          } catch (error) {
-            button.disabled = false;
-            button.textContent = "Delete";
-            window.alert(error.message);
-          }
+          pendingDeleteGameId = gameId;
+          document.getElementById("confirmText").textContent = `Delete ${game.title}: ${game.player1Name} vs ${game.player2Name} (${gameScore(game)})?`;
+          document.getElementById("confirmModal").classList.add("show");
         });
       });
+    }
+
+    function attachEditHandlers(container) {
+      container.querySelectorAll("[data-edit-game]").forEach(button => {
+        button.addEventListener("click", () => openEditModal(Number(button.dataset.editGame)));
+      });
+    }
+
+    function openEditModal(gameId) {
+      const game = state.games.find(item => item.id === gameId);
+      if (!game) return;
+      document.getElementById("editGameId").value = game.id;
+      document.getElementById("editPlayer1").value = String(game.player1ID);
+      document.getElementById("editPlayer2").value = String(game.player2ID);
+      document.getElementById("editScore1").value = game.player1Score;
+      document.getElementById("editScore2").value = game.player2Score;
+      document.getElementById("editGameDate").value = game.gameDate;
+      document.getElementById("editNotes").value = game.notes || "";
+      document.getElementById("gameModalSubtitle").textContent = `${game.title}: ${game.player1Name} vs ${game.player2Name}`;
+      document.getElementById("gameModal").classList.add("show");
+    }
+
+    function closeEditModal() {
+      document.getElementById("gameModal").classList.remove("show");
     }
 
     function renderGames() {
@@ -1482,12 +1843,12 @@
       const stats = buildStats();
       document.getElementById("membersList").innerHTML = stats.map(player => `
         <button class="player-card" data-profile="${player.id}" type="button">
-          <div class="avatar">${initials(player.title)}</div>
+          ${avatarHtml(player)}
           <div>
             <h4>${escapeHtml(player.title)}</h4>
-            <p>${player.wins} wins from ${player.gamesPlayed} games. ${player.pointsFor} points scored.</p>
+            <p>${player.wins} wins from ${player.gamesPlayed} games · ${player.streak.label}</p>
           </div>
-          <span class="pill blue">${player.winRate}%</span>
+          <span>${formHtml(player.form)}</span>
         </button>
       `).join("");
 
@@ -1513,6 +1874,10 @@
           <div class="kpi"><span>Games</span><strong>${player.gamesPlayed}</strong><small>All time</small></div>
           <div class="kpi"><span>Points for</span><strong>${player.pointsFor}</strong><small>${player.pointsAgainst} against</small></div>
           <div class="kpi"><span>Win rate</span><strong>${player.winRate}%</strong><small>${player.wins} wins</small></div>
+        </div>
+        <div class="grid two" style="margin-top:16px">
+          <div class="mini-row"><span>Recent form</span><strong>${formHtml(player.form)}</strong></div>
+          <div class="mini-row"><span>Current streak</span><strong>${player.streak.label}</strong></div>
         </div>
         <div style="margin-top:16px" id="profileGames"></div>
       `;
@@ -1556,6 +1921,28 @@
       `;
       drawPointsChart();
       renderScoreTrends();
+      renderHallOfFame();
+      renderRivalryInsights();
+    }
+
+    function renderHallOfFame() {
+      document.getElementById("hallOfFame").innerHTML = hallOfFameRows()
+        .map(([label, value]) => `<div class="mini-row"><span>${label}</span><strong>${escapeHtml(value)}</strong></div>`)
+        .join("");
+    }
+
+    function renderRivalryInsights() {
+      const rivalries = rivalryData();
+      const mostPlayed = rivalries.toSorted((a, b) => b.games.length - a.games.length)[0];
+      const balanced = rivalries.filter(item => item.games.length > 0).toSorted((a, b) => a.balance - b.balance || b.games.length - a.games.length)[0];
+      const rows = [
+        ["Most played matchup", mostPlayed ? `${mostPlayed.name}: ${mostPlayed.games.length} games` : "-"],
+        ["Most balanced matchup", balanced ? `${balanced.name}: ${balanced.aWins}-${balanced.bWins}` : "-"],
+        ["Most common winner", buildStats()[0] ? `${buildStats()[0].title}: ${buildStats()[0].wins} wins` : "-"]
+      ];
+      document.getElementById("rivalryInsights").innerHTML = rows
+        .map(([label, value]) => `<div class="mini-row"><span>${label}</span><strong>${escapeHtml(value)}</strong></div>`)
+        .join("");
     }
 
     function renderScoreTrends() {
@@ -1739,6 +2126,16 @@
       window.setTimeout(() => message.className = "message", 3200);
     }
 
+    function scoreValidationMessage(p1, p2) {
+      if (!Number.isFinite(p1) || !Number.isFinite(p2)) return "Enter both scores.";
+      if (p1 < 0 || p2 < 0) return "Scores cannot be negative.";
+      if (p1 === p2) return "A game cannot end in a draw.";
+      if (Math.max(p1, p2) < 21) return "One player must reach 21, or 22 after deuce.";
+      if (Math.max(p1, p2) === 21 && Math.min(p1, p2) >= 20) return "At 20-20 deuce, the final score must be 22-20.";
+      if (Math.max(p1, p2) === 22 && Math.min(p1, p2) !== 20) return "A 22-point game is only valid as 22-20.";
+      return "Invalid score. Use 21 with opponent below 20, or exactly 22-20 after deuce.";
+    }
+
     function navigate(view) {
       document.querySelectorAll(".view").forEach(section => section.classList.toggle("active", section.id === view));
       document.querySelectorAll(".nav button").forEach(button => button.classList.toggle("active", button.dataset.view === view));
@@ -1755,6 +2152,25 @@
     document.querySelectorAll("[data-go]").forEach(button => {
       button.addEventListener("click", () => navigate(button.dataset.go));
     });
+
+    async function handleSignInClick() {
+      try {
+        saveConfig();
+        await signIn();
+        await loadSharePointData(false);
+        renderConfig();
+      } catch (error) {
+        showConnectionMessage(error.message, "bad");
+      }
+    }
+
+    async function handleSignOutClick() {
+      try {
+        await signOut();
+      } catch (error) {
+        showConnectionMessage(error.message, "bad");
+      }
+    }
 
     document.getElementById("monthFilter").addEventListener("change", () => {
       renderDashboard();
@@ -1778,23 +2194,15 @@
     }
 
     document.getElementById("signInBtn").addEventListener("click", async () => {
-      try {
-        saveConfig();
-        await signIn();
-        await loadSharePointData(false);
-        renderConfig();
-      } catch (error) {
-        showConnectionMessage(error.message, "bad");
-      }
+      await handleSignInClick();
     });
 
     document.getElementById("signOutBtn").addEventListener("click", async () => {
-      try {
-        await signOut();
-      } catch (error) {
-        showConnectionMessage(error.message, "bad");
-      }
+      await handleSignOutClick();
     });
+
+    document.getElementById("sideSignInBtn").addEventListener("click", handleSignInClick);
+    document.getElementById("sideSignOutBtn").addEventListener("click", handleSignOutClick);
 
     const loadSharePointBtn = document.getElementById("loadSharePointBtn");
     if (loadSharePointBtn) {
@@ -1820,7 +2228,7 @@
         return;
       }
       if (!isValidScore(p1Score, p2Score)) {
-        showMessage("Invalid score. Use 21 with opponent below 20, or exactly 22-20 after deuce.", "bad");
+        showMessage(scoreValidationMessage(p1Score, p2Score), "bad");
         return;
       }
       const p1 = state.members.find(member => member.id === p1Id);
@@ -1858,6 +2266,80 @@
         navigate("dashboard");
       } catch (error) {
         showMessage(error.message, "bad");
+      }
+    });
+
+    document.getElementById("cancelEditBtn").addEventListener("click", closeEditModal);
+
+    document.getElementById("editGameForm").addEventListener("submit", async event => {
+      event.preventDefault();
+      const gameId = Number(document.getElementById("editGameId").value);
+      const p1Id = Number(document.getElementById("editPlayer1").value);
+      const p2Id = Number(document.getElementById("editPlayer2").value);
+      const p1Score = Number(document.getElementById("editScore1").value);
+      const p2Score = Number(document.getElementById("editScore2").value);
+      if (p1Id === p2Id) {
+        window.alert("Choose two different players.");
+        return;
+      }
+      if (!isValidScore(p1Score, p2Score)) {
+        window.alert(scoreValidationMessage(p1Score, p2Score));
+        return;
+      }
+      const existing = state.games.find(game => game.id === gameId);
+      const p1 = state.members.find(member => member.id === p1Id);
+      const p2 = state.members.find(member => member.id === p2Id);
+      const winner = p1Score > p2Score ? p1 : p2;
+      if (!existing || !p1 || !p2 || !winner) return;
+      const updated = {
+        ...existing,
+        player1Name: p1.title,
+        player2Name: p2.title,
+        player1ID: p1.id,
+        player2ID: p2.id,
+        player1Score: p1Score,
+        player2Score: p2Score,
+        winnerName: winner.title,
+        winnerID: winner.id,
+        gameDate: document.getElementById("editGameDate").value,
+        notes: document.getElementById("editNotes").value.trim()
+      };
+      try {
+        if (dataMode === "sharepoint") await updateSharePointGame(updated);
+        state.games = state.games.map(game => game.id === updated.id ? updated : game);
+        if (dataMode !== "sharepoint") saveState();
+        closeEditModal();
+        renderAll();
+        navigate("games");
+      } catch (error) {
+        window.alert(error.message);
+      }
+    });
+
+    document.getElementById("cancelDeleteBtn").addEventListener("click", () => {
+      pendingDeleteGameId = null;
+      document.getElementById("confirmModal").classList.remove("show");
+    });
+
+    document.getElementById("confirmDeleteBtn").addEventListener("click", async () => {
+      const game = state.games.find(item => item.id === pendingDeleteGameId);
+      if (!game) return;
+      const button = document.getElementById("confirmDeleteBtn");
+      button.disabled = true;
+      button.textContent = "Deleting";
+      try {
+        if (dataMode === "sharepoint") await deleteSharePointGame(game.id);
+        state.games = state.games.filter(item => item.id !== game.id);
+        if (dataMode !== "sharepoint") saveState();
+        pendingDeleteGameId = null;
+        document.getElementById("confirmModal").classList.remove("show");
+        renderAll();
+        navigate("games");
+      } catch (error) {
+        window.alert(error.message);
+      } finally {
+        button.disabled = false;
+        button.textContent = "Delete game";
       }
     });
 
